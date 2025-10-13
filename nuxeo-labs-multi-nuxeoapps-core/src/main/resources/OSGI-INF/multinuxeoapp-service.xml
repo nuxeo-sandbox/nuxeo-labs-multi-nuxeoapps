@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<component
+	name="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService">
+
+	<implementation
+		class="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppServiceImpl" />
+
+	<service>
+		<provide
+			interface="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService" />
+	</service>
+
+	<extension-point name="nuxeoapp">
+		<object
+			class="org.nuxeo.labs.multi.nuxeoapps.NuxeoAppDescriptor" />
+	</extension-point>
+
+	<!-- Example contributions. First with basic auth, second with token
+	     sensitive values are read from nuxeo.conf using your custom parameters -->
+	<!--
+	<extension
+		target="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService"
+		point="nuxeoapp">
+		<nuxeoapp>
+			<appName>MarketingApp</appName>
+			<appUrl>https://something.etc...etc.../nuxeo</appUrl>
+			<basicUser>${the.marketingapp.user:=}</basicUser>
+			<basicPwd>${the.marketingapp.pwd:=}</basicPwd>
+		</nuxeoapp>
+		<nuxeoapp>
+			<appName>AccountingApp</appName>
+			<appUrl>https://something.etc...etc.../nuxeo</appUrl>
+			<tokenUser>${the.accountingapp.token.user:=}</tokenUser>
+			<tokenClientId>${the.accountingapp.token.clientId:=}</tokenClientId>
+			<tokenClientSecret>${the.accountingapp.token.clientSecret:=}</tokenClientSecret>
+			<jwtSecret>${the.accountingapp.nuxeo.jwt.secret:=}</jwtSecret>
+		</nuxeoapp>
+	</extension>
+	-->
+</component>
