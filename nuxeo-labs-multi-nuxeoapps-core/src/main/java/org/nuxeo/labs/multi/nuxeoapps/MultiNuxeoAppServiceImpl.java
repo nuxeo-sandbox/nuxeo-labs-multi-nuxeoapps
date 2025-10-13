@@ -18,7 +18,6 @@
  */
 package org.nuxeo.labs.multi.nuxeoapps;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,24 +29,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.nuxeo.ecm.automation.core.util.PageProviderHelper;
-import org.nuxeo.ecm.automation.jaxrs.io.documents.PaginableDocumentModelListImpl;
+import org.nuxeo.ecm.core.api.CoreInstance;
 import org.nuxeo.ecm.core.api.CoreSession;
-import org.nuxeo.ecm.core.api.DocumentModel;
-import org.nuxeo.ecm.core.api.DocumentModelList;
-import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.api.NuxeoPrincipal;
-import org.nuxeo.ecm.core.io.registry.MarshallerHelper;
-import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
-import org.nuxeo.ecm.platform.query.api.PageProvider;
-import org.nuxeo.ecm.platform.query.api.PageProviderDefinition;
 import org.nuxeo.runtime.model.ComponentContext;
 import org.nuxeo.runtime.model.DefaultComponent;
 import org.nuxeo.runtime.model.Extension;
@@ -59,9 +48,6 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
     protected static final String EXT_POINT = "nuxeoapp";
 
     protected Map<String, NuxeoApp> configuredNuxeoApps = new HashMap<String, NuxeoApp>();
-
-    @Inject
-    CoreSession session;
 
     @Override
     public JSONArray getNuxeoApps() {
@@ -172,6 +158,13 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
             finalResult = fetchAllAsync(nuxeoApps, getCurrentUserName(), nxql, enrichers, properties, pageIndex);
         }
 
+        // Now, search current Nuxeo?
+        NuxeoPrincipal pcipal = NuxeoPrincipal.getCurrent();
+        CoreSession session = CoreInstance.getCoreSession(null, pcipal);
+        JSONObject localSearchObj = NuxeoAppCurrent.getInstance()
+                                                   .search(session, nxql, enrichers, properties, pageIndex);
+        finalResult.put(localSearchObj);
+
         return finalResult;
 
     }
@@ -211,47 +204,6 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
 
         return call(nuxeoApps, nxql, fulltextSearchValues, enrichers, properties, pageIndex);
 
-    }
-
-    protected JSONObject searchCurrentNuxeo(String finalNxql, String enrichers, String properties, int pageIndex) {
-
-        PageProviderDefinition def = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true, true);
-        @SuppressWarnings("unchecked")
-        PageProvider<DocumentModel> pp = (PageProvider<DocumentModel>) PageProviderHelper.getPageProvider(session, def,
-                null, null, null, null/* pageSize */, pageIndex, null);
-
-        PaginableDocumentModelListImpl res = new PaginableDocumentModelListImpl(pp);
-        if (res.hasError()) {
-            throw new NuxeoException(res.getErrorMessage());
-        }
-
-        String[] enrichersList = { "" };
-        if (StringUtils.isNotBlank(enrichers)) {
-            enrichersList = Arrays.stream(enrichers.split(","))
-                                  .map(String::trim)
-                                  .filter(s -> !s.isEmpty())
-                                  .toArray(String[]::new);
-        }
-        String[] propertiesList = { "" };
-        if (StringUtils.isNotBlank(properties)) {
-            propertiesList = Arrays.stream(enrichers.split(","))
-                                   .map(String::trim)
-                                   .filter(s -> !s.isEmpty())
-                                   .toArray(String[]::new);
-        }
-        RenderingContext rCtx = RenderingContext.CtxBuilder.enrichDoc(enrichersList).properties(propertiesList).get();
-        String resultJsonStr;
-        try {
-            resultJsonStr = MarshallerHelper.objectToJson(DocumentModelList.class, res, rCtx);
-            return new JSONObject(resultJsonStr);
-
-        } catch (IOException e) {
-
-            JSONObject result = NuxeoApp.generateErrorObject(-1, "An error occured: " + e.getMessage(),
-                    "Current Nuxeo Server", true, null);
-
-            return result;
-        }
     }
 
     // ======================================================================

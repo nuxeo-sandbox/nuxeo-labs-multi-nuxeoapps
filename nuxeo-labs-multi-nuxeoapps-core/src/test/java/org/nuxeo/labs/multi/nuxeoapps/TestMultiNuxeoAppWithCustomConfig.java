@@ -1,0 +1,175 @@
+package org.nuxeo.labs.multi.nuxeoapps;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.List;
+import java.util.stream.Stream;
+
+import javax.inject.Inject;
+
+import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.junit.Assume;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.nuxeo.ecm.core.api.CoreSession;
+import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.runtime.test.runner.Deploy;
+import org.nuxeo.runtime.test.runner.Features;
+import org.nuxeo.runtime.test.runner.FeaturesRunner;
+
+@RunWith(FeaturesRunner.class)
+@Features({ PlatformFeature.class })
+@Deploy("nuxeo-labs-multi-nuxeoapps-core")
+
+/*
+ * The MultiNuxeoApps.xml test contrib is deployed in some tests.
+ * It contributes different NuxeoApp and assumes env. variables are set for
+ * the misc. values (URL, passwords, etc. If not set, the test is ignored.
+ */
+@Deploy("nuxeo-labs-multi-nuxeoapps-core:MultiNuxeoApps.xml")
+public class TestMultiNuxeoAppWithCustomConfig {
+
+    protected static final List<String> APP_NAMES = List.of("TEST_AppBASIC1", "TEST_AppBASIC2", "TEST_AppJWT");
+
+    @Inject
+    protected CoreSession session;
+
+    @Inject
+    protected MultiNuxeoAppService multiNuxeoAppService;
+
+    // These variables are used in the MultiNuxeoApps.xml ctest contribution
+    protected static Boolean hasVariablesSet = null;
+
+    protected boolean hasEnvVariablesSet() {
+
+        // We just test some, assuming if they are set, the others are set too
+        if (hasVariablesSet == null) {
+            String v1 = System.getenv("TEST_MULTIAPPS_APP_BASIC1_URL");
+            String v2 = System.getenv("TEST_MULTIAPPS_APP_BASIC2_URL");
+            String v3 = System.getenv("TEST_MULTIAPPS_APP_JWT_URL");
+
+            hasVariablesSet = StringUtils.isNoneBlank(v1, v2, v3);
+        }
+
+        return hasVariablesSet;
+    }
+
+    protected boolean hasApps(JSONArray arr, String... appNames) {
+
+        for (String oneName : appNames) {
+            boolean found = false;
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject documentsJson = arr.getJSONObject(i);
+                JSONObject appInfo = documentsJson.getJSONObject(NuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
+                if (oneName.equals(appInfo.getString("appName"))) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected JSONObject getResultsForApp(JSONArray arr, String appName) {
+
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject documentsJson = arr.getJSONObject(i);
+            JSONObject appInfo = documentsJson.getJSONObject(NuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
+            if (appName.equals(appInfo.getString("appName"))) {
+                return documentsJson;
+            }
+        }
+
+        return null;
+    }
+
+    @Test
+    public void shouldHaveCustomConfigDeployed() {
+
+        JSONArray apps = multiNuxeoAppService.getNuxeoApps();
+        assertNotNull(apps);
+        assertEquals(3, apps.length());
+
+        for (int i = 0; i < apps.length(); i++) {
+            JSONObject oneAppJson = apps.getJSONObject(i);
+            assertNotNull(oneAppJson);
+
+            assertTrue(APP_NAMES.indexOf(oneAppJson.getString("appName")) > -1);
+        }
+
+    }
+
+    @Test
+    public void shouldSearchOneApp() {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigDeployed();
+
+        // (TEST_AppBASIC1 defined in the xml contrib)
+        JSONArray arr = multiNuxeoAppService.call("TEST_AppBASIC1", null, TestUtils.KEYWORD, null, null, 0);
+        assertNotNull(arr);
+        assertTrue(arr.length() == 2); // Only one repo searched, + local
+
+        assertTrue(hasApps(arr, "TEST_AppBASIC1", NuxeoAppCurrent.getInstance().getAppName()));
+
+        // Not testing tst server results, it likely failed because of "no fulltext index"
+        JSONObject result = getResultsForApp(arr, "TEST_AppBASIC1");
+        assertNotNull(result);
+
+        JSONObject appInfo = result.getJSONObject(NuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
+        assertNotNull(appInfo);
+
+        assertEquals("documents", result.getString("entity-type"));
+    }
+
+    @Test
+    public void shoudSearchAllApps() throws Exception {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigDeployed();
+
+        JSONArray arr = multiNuxeoAppService.call("all", null, TestUtils.KEYWORD, null, null, 0);
+        assertNotNull(arr);
+
+        String currentAppNamme = NuxeoAppCurrent.getInstance().getAppName();
+        String[] array = Stream.concat(APP_NAMES.stream(), Stream.of(currentAppNamme)).toArray(String[]::new);
+        assertTrue(hasApps(arr, array));
+        assertTrue(arr.length() == APP_NAMES.size() + 1); // + local
+
+    }
+
+    @Test
+    public void testOneWithJWT() throws Exception {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigDeployed();
+
+        JSONArray arr = multiNuxeoAppService.call("TEST_AppJWT", null, TestUtils.KEYWORD, null, null, 0);
+        assertNotNull(arr);
+        assertTrue(arr.length() == 2); // Only one repo searched, + local
+
+        assertTrue(hasApps(arr, "TEST_AppJWT", NuxeoAppCurrent.getInstance().getAppName()));
+        
+        // Not testing tst server results, it likely failed because of "no fulltext index"
+        JSONObject result = getResultsForApp(arr, "TEST_AppJWT");
+        assertNotNull(result);
+
+        JSONObject appInfo = result.getJSONObject(NuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
+        assertNotNull(appInfo);
+
+        assertEquals("documents", result.getString("entity-type"));
+
+    }
+
+}

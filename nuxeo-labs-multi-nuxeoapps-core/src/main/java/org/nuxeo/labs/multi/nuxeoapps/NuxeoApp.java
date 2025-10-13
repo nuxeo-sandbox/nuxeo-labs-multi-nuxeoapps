@@ -28,7 +28,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.NuxeoException;
@@ -36,20 +35,13 @@ import org.nuxeo.ecm.core.api.NuxeoException;
 /**
  * @since 2023
  */
-public class NuxeoApp {
-
-    public static final String MULTI_NUXEO_APPS_PROPERTY_NAME = "multiNxAppInfo";
-
-    protected String appName;
-
-    protected String appUrl;
+public class NuxeoApp extends AbstractNuxeoApp {
 
     protected NuxeoAppAuthentication nuxeoAppAuthentication = null;
 
     public NuxeoApp(String appName, String appUrl, String basicUser, String basicPwd) {
 
-        this.appName = appName;
-        this.appUrl = appUrl;
+        initialize(appName, appUrl);
 
         nuxeoAppAuthentication = new NuxeoAppBASIC(basicUser, basicPwd);
 
@@ -57,9 +49,8 @@ public class NuxeoApp {
 
     public NuxeoApp(String appName, String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
             String jwtSecret) {
-
-        this.appName = appName;
-        this.appUrl = appUrl;
+        
+        initialize(appName, appUrl);
 
         nuxeoAppAuthentication = new NuxeoAppJWT(appUrl, tokenUser, tokenClientId, tokenClientSecret, jwtSecret);
 
@@ -80,14 +71,6 @@ public class NuxeoApp {
         }
 
         throw new NuxeoException("Object is not BASIC not JWT authentication.");
-    }
-
-    public String getAppName() {
-        return appName;
-    }
-
-    public String getAppUrl() {
-        return appUrl;
     }
 
     public JSONObject call(String nxql, String enrichers, String properties, int pageIndex) {
@@ -134,6 +117,9 @@ public class NuxeoApp {
             if (status == 200) {
 
                 result = new JSONObject(resp.body());
+                
+                updateEntries(result, status);
+                /*
                 JSONArray entries = result.getJSONArray("entries");
                 for (int i = 0; i < entries.length(); i++) {
                     JSONObject oneDoc = entries.getJSONObject(i);
@@ -142,9 +128,10 @@ public class NuxeoApp {
                 }
 
                 result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, addMultiNxAppInfo(status, null, null));
+                */
 
             } else {
-                result = addMultiNxAppInfo(status, null, resp.body());
+                result = createMultiNxAppInfo(status, null, resp.body());
             }
 
         } catch (IOException | InterruptedException e) {
@@ -154,42 +141,26 @@ public class NuxeoApp {
         return result;
     }
 
-    protected JSONObject addMultiNxAppInfo(Integer httpStatus, String docFullUrl, String message) {
-
-        JSONObject obj = new JSONObject();
-
-        obj.put("appName", appName);
-        if (httpStatus != null) {
-            obj.put("httpResponseStatus", httpStatus);
-        }
-        if (StringUtils.isNotBlank(docFullUrl)) {
-            obj.put("docFullUrl", docFullUrl);
-        }
-        if (StringUtils.isNotBlank(message)) {
-            obj.put("docFullUrl", message);
-        }
-
-        return obj;
-
-    }
-
     public static JSONObject generateErrorObject(int httpResponseStatus, String responseMessage, String appName,
             boolean withEmptyEntries, Map<String, String> otherFields) {
 
-        JSONObject obj = new JSONObject();
-        obj.put("multiNxApp_hasError", true);
-        obj.put("multiNxApp_httpResponseStatus", httpResponseStatus);
-        obj.put("multiNxApp_responseMessage", responseMessage);
-        obj.put("multiNxApp_appName", appName);
+        JSONObject result = new JSONObject();
         if (withEmptyEntries) {
-            obj.put("entity-type", "documents");
-            obj.put("entries", new JSONArray());
+            result.put("entity-type", "documents");
+            result.put("entries", new JSONArray());
         }
         if (otherFields != null) {
-            otherFields.forEach(obj::put);
+            otherFields.forEach(result::put);
         }
+        
+        JSONObject obj = new JSONObject();
+        obj.put("hasError", true);
+        obj.put("httpResponseStatus", httpResponseStatus);
+        obj.put("responseMessage", responseMessage);
+        obj.put("appName", appName);
+        result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, obj);
 
-        return obj;
+        return result;
 
     }
 
