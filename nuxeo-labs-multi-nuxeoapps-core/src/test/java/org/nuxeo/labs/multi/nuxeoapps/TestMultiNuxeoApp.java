@@ -9,6 +9,7 @@ import org.json.JSONArray;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
@@ -32,6 +33,12 @@ public class TestMultiNuxeoApp {
         JSONArray apps = multiNuxeoAppService.getNuxeoApps();
 
         assertTrue(apps == null || apps.length() == 0);
+    }
+    
+    @Test
+    public void miscTest() throws Exception {
+        System.out.println(NuxeoAppServletUtils.removeUrlPrefix("http://localhost:8080/nuxeo/etc/etc"));
+        System.out.println(NuxeoAppServletUtils.removeUrlPrefix("https://my.server.com/nuxeo/etc/etc"));
     }
 
 }

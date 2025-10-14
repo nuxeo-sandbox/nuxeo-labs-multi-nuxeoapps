@@ -28,7 +28,7 @@ import org.nuxeo.ecm.core.api.NuxeoException;
  * 
  * @since TODO
  */
-public class NuxeoAppBASIC implements NuxeoAppAuthentication {
+public class NuxeoAppAuthenticationBASIC implements NuxeoAppAuthentication {
 
     protected String user;
 
@@ -36,7 +36,7 @@ public class NuxeoAppBASIC implements NuxeoAppAuthentication {
 
     protected String basicAuthHeaderValue = null;
 
-    public NuxeoAppBASIC(String user, String pwd) {
+    public NuxeoAppAuthenticationBASIC(String user, String pwd) {
 
         this.user = user;
         this.pwd = pwd;

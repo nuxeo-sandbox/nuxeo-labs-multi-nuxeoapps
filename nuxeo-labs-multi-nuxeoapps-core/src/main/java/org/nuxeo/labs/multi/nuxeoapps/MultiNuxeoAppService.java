@@ -45,6 +45,8 @@ public interface MultiNuxeoAppService {
      * @since 2023
      */
     JSONArray getNuxeoApps();
+    
+    NuxeoApp getNuxeoApp(String appName);
 
     /**
      * Returns a JSONArray, one entry/app with the usual JSON of a search result.

@@ -65,7 +65,7 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
 
         log.warn("NuxeoAppCurrent, appName=<" + appName + ">, appUrl=<" + appUrl + ">");
 
-        initialize(appName, appUrl);
+        initialize(appName, appUrl, true);
 
     }
 

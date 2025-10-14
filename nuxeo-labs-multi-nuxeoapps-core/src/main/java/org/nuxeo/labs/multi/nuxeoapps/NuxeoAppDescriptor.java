@@ -76,7 +76,7 @@ public class NuxeoAppDescriptor {
             return null;
         }
         
-        if(NuxeoAppJWT.TAG_CURRENT_USER.equals(expression)) {
+        if(NuxeoAppAuthenticationJWT.TAG_CURRENT_USER.equals(expression)) {
             return expression;
         }
         
@@ -91,7 +91,11 @@ public class NuxeoAppDescriptor {
                 varName = null;
             }
             if(StringUtils.isNoneBlank(varName)) {
-                varValue = System.getenv(varName);
+                if(NuxeoAppAuthenticationJWT.TAG_CURRENT_USER.equals(varName)) {
+                    varValue = varName;
+                } else {
+                    varValue = System.getenv(varName);
+                }
             }
         }
         if(StringUtils.isBlank(varValue)) {

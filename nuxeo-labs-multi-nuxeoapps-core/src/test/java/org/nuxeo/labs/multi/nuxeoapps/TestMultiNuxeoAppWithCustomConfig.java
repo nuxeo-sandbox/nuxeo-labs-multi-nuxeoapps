@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
 import org.nuxeo.runtime.test.runner.Deploy;
@@ -115,7 +116,8 @@ public class TestMultiNuxeoAppWithCustomConfig {
         shouldHaveCustomConfigDeployed();
 
         // (TEST_AppBASIC1 defined in the xml contrib)
-        JSONArray arr = multiNuxeoAppService.call("TEST_AppBASIC1", null, TestUtils.KEYWORD, null, null, 0);
+        JSONArray arr = multiNuxeoAppService.call("TEST_AppBASIC2", null, TestUtils.KEYWORD, null, null, 0);
+        //JSONArray arr = multiNuxeoAppService.call("TEST_AppBASIC2", "SELECT * FROM Picture", TestUtils.KEYWORD, null, "file,thumbnail,picture", 0);
         assertNotNull(arr);
         assertTrue(arr.length() == 2); // Only one repo searched, + local
 
@@ -170,6 +172,26 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         assertEquals("documents", result.getString("entity-type"));
 
+    }
+    
+    @Test
+    public void shouldGetRemoteBlob() throws Exception {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigDeployed();
+        
+        /*
+        NuxeoApp app = multiNuxeoAppService.getNuxeoApp("TEST_AppBASIC1");
+        assertNotNull(app);
+        Blob b = app.getBlob("/nxfile/default/d14837dc-bfcd-41bb-8886-ae1b8bfbc17c/file:content/NYCHighLine.jpg?changeToken=3-0");
+        */
+        NuxeoApp app = multiNuxeoAppService.getNuxeoApp("TEST_AppBASIC2");
+        assertNotNull(app);
+        Blob b = app.getBlob("/nxfile/default/b5af5424-7080-4779-abdd-b3fdcb8d8eb6/thumb:thumbnail/181002121444-file-exlarge-169_small.jpeg?changeToken=25-0");
+        assertNotNull(b);
+        assertEquals("181002121444-file-exlarge-169_small.jpeg", b.getFilename());
+        
     }
 
 }

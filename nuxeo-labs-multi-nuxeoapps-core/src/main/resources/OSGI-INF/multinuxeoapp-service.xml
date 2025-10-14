@@ -16,7 +16,7 @@
 	</extension-point>
 
 	<!-- Example contributions. First with basic auth, second with token
-	     sensitive values are read from nuxeo.conf using your custom parameters -->
+	     Sensitive values are read from nuxeo.conf using your custom parameters -->
 	<!--
 	<extension
 		target="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService"
@@ -32,7 +32,7 @@
 			<appUrl>https://something.etc...etc.../nuxeo</appUrl>
 			<tokenUser>${the.accountingapp.token.user:=}</tokenUser>
 			<tokenClientId>${the.accountingapp.token.clientId:=}</tokenClientId>
-			<tokenClientSecret>${the.accountingapp.token.clientSecret:=}</tokenClientSecret>
+	<tokenClientSecret>${the.accountingapp.token.clientSecret:=}</tokenClientSecret>
 			<jwtSecret>${the.accountingapp.nuxeo.jwt.secret:=}</jwtSecret>
 		</nuxeoapp>
 	</extension>

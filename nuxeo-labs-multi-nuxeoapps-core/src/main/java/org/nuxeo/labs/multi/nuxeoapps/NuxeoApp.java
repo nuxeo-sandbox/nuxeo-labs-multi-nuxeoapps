@@ -22,15 +22,21 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.nuxeo.ecm.core.api.Blob;
+import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.NuxeoException;
+import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
  * @since 2023
@@ -41,18 +47,19 @@ public class NuxeoApp extends AbstractNuxeoApp {
 
     public NuxeoApp(String appName, String appUrl, String basicUser, String basicPwd) {
 
-        initialize(appName, appUrl);
+        initialize(appName, appUrl, false);
 
-        nuxeoAppAuthentication = new NuxeoAppBASIC(basicUser, basicPwd);
+        nuxeoAppAuthentication = new NuxeoAppAuthenticationBASIC(basicUser, basicPwd);
 
     }
 
     public NuxeoApp(String appName, String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
             String jwtSecret) {
-        
-        initialize(appName, appUrl);
 
-        nuxeoAppAuthentication = new NuxeoAppJWT(appUrl, tokenUser, tokenClientId, tokenClientSecret, jwtSecret);
+        initialize(appName, appUrl, false);
+
+        nuxeoAppAuthentication = new NuxeoAppAuthenticationJWT(appUrl, tokenUser, tokenClientId, tokenClientSecret,
+                jwtSecret);
 
     }
 
@@ -61,11 +68,11 @@ public class NuxeoApp extends AbstractNuxeoApp {
         String appName = jsonApp.getString("jsonApp");
         String appUrl = jsonApp.getString("appUrl");
 
-        if (NuxeoAppBASIC.hasEnoughValues(jsonApp)) {
+        if (NuxeoAppAuthenticationBASIC.hasEnoughValues(jsonApp)) {
             return new NuxeoApp(appName, appUrl, jsonApp.getString("basicUser"), jsonApp.getString("basicPwd"));
         }
 
-        if (NuxeoAppJWT.hasEnoughValues(jsonApp)) {
+        if (NuxeoAppAuthenticationJWT.hasEnoughValues(jsonApp)) {
             return new NuxeoApp(appName, appUrl, jsonApp.getString("tokenUser"), jsonApp.getString("tokenClientId"),
                     jsonApp.getString("tokenClientSecret"), jsonApp.getString("jwtSecret"));
         }
@@ -117,18 +124,8 @@ public class NuxeoApp extends AbstractNuxeoApp {
             if (status == 200) {
 
                 result = new JSONObject(resp.body());
-                
-                updateEntries(result, status);
-                /*
-                JSONArray entries = result.getJSONArray("entries");
-                for (int i = 0; i < entries.length(); i++) {
-                    JSONObject oneDoc = entries.getJSONObject(i);
-                    JSONObject info = addMultiNxAppInfo(null, appUrl + "/ui/#!/doc/" + oneDoc.getString("uid"), null);
-                    oneDoc.put(MULTI_NUXEO_APPS_PROPERTY_NAME, info);
-                }
 
-                result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, addMultiNxAppInfo(status, null, null));
-                */
+                updateEntries(result, status);
 
             } else {
                 result = createMultiNxAppInfo(status, null, resp.body());
@@ -152,7 +149,7 @@ public class NuxeoApp extends AbstractNuxeoApp {
         if (otherFields != null) {
             otherFields.forEach(result::put);
         }
-        
+
         JSONObject obj = new JSONObject();
         obj.put("hasError", true);
         obj.put("httpResponseStatus", httpResponseStatus);
@@ -172,9 +169,9 @@ public class NuxeoApp extends AbstractNuxeoApp {
         jsonApp.put("appUrl", appUrl);
 
         JSONObject authObj = null;
-        if (nuxeoAppAuthentication instanceof NuxeoAppBASIC) {
+        if (nuxeoAppAuthentication instanceof NuxeoAppAuthenticationBASIC) {
             authObj = nuxeoAppAuthentication.toJSONObject();
-        } else if (nuxeoAppAuthentication instanceof NuxeoAppJWT) {
+        } else if (nuxeoAppAuthentication instanceof NuxeoAppAuthenticationJWT) {
             authObj = nuxeoAppAuthentication.toJSONObject();
         } else {
             throw new NuxeoException("No NuxeoAppAuthentication defined.");
@@ -185,6 +182,75 @@ public class NuxeoApp extends AbstractNuxeoApp {
         }
 
         return jsonApp;
+    }
+
+    @Override
+    public Blob getBlob(String relativePath) throws IOException, InterruptedException {
+
+        String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue();
+
+        String url = relativePath;
+        if (!url.startsWith("/")) {
+            url = "/" + url;
+        }
+        if (url.indexOf("&clientReason=download") < 0) {
+            url += "&clientReason=download";
+        }
+
+        String targetUrl = appUrl + url;
+
+        HttpClient client = HttpClient.newBuilder()
+                                      .connectTimeout(Duration.ofSeconds(60))
+                                      .followRedirects(HttpClient.Redirect.NEVER) // Automatic redirect fails when using
+                                                                                  // S3 direct download
+                                      .build();
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
+                                         .timeout(Duration.ofSeconds(40))
+                                         .header("Authorization", authHeaderValue)
+                                         .header("Accept", "*/*")
+                                         .GET()
+                                         .build();
+
+        Blob blob = Blobs.createBlobWithExtension(".bin");// Create a temp. file
+        Path blobFilePath = blob.getFile().toPath();
+
+        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
+
+        if (isRedirect(response.statusCode())) {
+            String location = response.headers()
+                                      .firstValue("Location")
+                                      .orElseThrow(() -> new IOException("Redirect without Location header"));
+
+            request = HttpRequest.newBuilder(URI.create(location)).GET().header("Accept", "*/*").build();
+
+            response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
+        }
+
+        if (response.statusCode() != 200) {
+            throw new IOException("Failed to download file: HTTP " + response.statusCode());
+        }
+
+        HttpHeaders headers = response.headers();
+        String mimeType = headers.firstValue("Content-Type").orElse(null);
+        // Detect MIME type if not provided
+        if (mimeType == null) {
+            mimeType = Files.probeContentType(blobFilePath);
+            if (mimeType == null) {
+                mimeType = "application/octet-stream";
+            }
+        }
+        blob.setMimeType(mimeType);
+
+        String fileName = NuxeoAppServletUtils.extractFileName(headers.firstValue("Content-Disposition").orElse(null), url);
+        blob.setFilename(fileName);
+
+        return blob;
+
+    }
+
+    private static boolean isRedirect(int code) {
+        return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
     }
 
 }

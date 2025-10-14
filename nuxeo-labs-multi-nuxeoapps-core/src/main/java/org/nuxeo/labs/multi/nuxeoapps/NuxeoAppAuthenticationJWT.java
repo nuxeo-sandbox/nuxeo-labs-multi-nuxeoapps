@@ -41,7 +41,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 /**
  * @since TODO
  */
-public class NuxeoAppJWT implements NuxeoAppAuthentication {
+public class NuxeoAppAuthenticationJWT implements NuxeoAppAuthentication {
 
     public static final String TAG_CURRENT_USER = "MULTI_NUXEO_APPS_JWT_CURRENT_USER";
 
@@ -59,7 +59,7 @@ public class NuxeoAppJWT implements NuxeoAppAuthentication {
 
     protected String jwtSecret;
 
-    public NuxeoAppJWT(String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
+    public NuxeoAppAuthenticationJWT(String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
             String jwtSecret) {
 
         this.appUrl = appUrl;

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<fragment version="1">
+
+  <extension target="web#SERVLET">
+
+    <servlet>
+      <servlet-name>Multi Nuxeo Apps Servlet</servlet-name>
+      <servlet-class>org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>Multi Nuxeo Apps Servlet</servlet-name>
+      <url-pattern>/multiNxApps</url-pattern>
+      <url-pattern>/multiNxApps/*</url-pattern>
+    </servlet-mapping>
+
+  </extension>
+  
+  <extension target="web#STD-AUTH-FILTER">
+
+    <filter-mapping>
+      <filter-name>NuxeoAuthenticationFilter
+      </filter-name>
+      <url-pattern>/multiNxApps</url-pattern>
+      <dispatcher>REQUEST</dispatcher>
+      <dispatcher>FORWARD</dispatcher>
+    </filter-mapping>
+    <filter-mapping>
+      <filter-name>NuxeoAuthenticationFilter
+      </filter-name>
+      <url-pattern>/multiNxApps/*</url-pattern>
+      <dispatcher>REQUEST</dispatcher>
+      <dispatcher>FORWARD</dispatcher>
+    </filter-mapping>
+
+  </extension>
+
+</fragment>

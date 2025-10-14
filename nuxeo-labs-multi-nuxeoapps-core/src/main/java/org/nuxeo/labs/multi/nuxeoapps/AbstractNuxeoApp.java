@@ -18,43 +18,58 @@
  */
 package org.nuxeo.labs.multi.nuxeoapps;
 
+import java.io.IOException;
+
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.nuxeo.ecm.core.api.Blob;
+import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
+ * Base class for all NuxeoApp, providing centrfalized shared methods
  * 
- * @since TODO
+ * @since 2023
  */
 public abstract class AbstractNuxeoApp {
 
     public static final String MULTI_NUXEO_APPS_PROPERTY_NAME = "multiNxAppInfo";
-    
+
     String appName;
-    
+
     String appUrl;
     
-    public void initialize(String appName, String appUrl) {
-        
+    boolean isLocalNuxeo;
+
+    public void initialize(String appName, String appUrl, boolean isLocalNuxeo) {
+
         this.appName = appName;
         this.appUrl = appUrl;
+        this.isLocalNuxeo = isLocalNuxeo;
     }
-    
-    String getAppName() {
+
+    public String getAppName() {
         return appName;
     }
-    
-    String getAppUrl() {
+
+    public String getAppUrl() {
         return appUrl;
     }
-    
+
     public void updateEntries(JSONObject result, Integer status) {
-        
+
         JSONArray entries = result.getJSONArray("entries");
         for (int i = 0; i < entries.length(); i++) {
+            
             JSONObject oneDoc = entries.getJSONObject(i);
+            
+            // Change blob URLs
+            NuxeoAppServletUtils.updateBlobUrlsInProperties(oneDoc, getAppName(), isLocalNuxeo);
+            
+            // Add NuxeoApp info
             JSONObject info = createMultiNxAppInfo(null, appUrl + "/ui/#!/doc/" + oneDoc.getString("uid"), null);
             oneDoc.put(MULTI_NUXEO_APPS_PROPERTY_NAME, info);
+
         }
 
         result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, createMultiNxAppInfo(status, null, null));
@@ -77,6 +92,13 @@ public abstract class AbstractNuxeoApp {
 
         return obj;
 
+    }
+
+    // To be overriden
+    public Blob getBlob(String url) throws IOException, InterruptedException {
+
+        // Implement calling GET to get the blob
+        throw new UnsupportedOperationException();
     }
 
 }

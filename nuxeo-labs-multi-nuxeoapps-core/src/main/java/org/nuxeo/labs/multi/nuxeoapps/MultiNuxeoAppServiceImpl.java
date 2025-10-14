@@ -48,6 +48,11 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
     protected static final String EXT_POINT = "nuxeoapp";
 
     protected Map<String, NuxeoApp> configuredNuxeoApps = new HashMap<String, NuxeoApp>();
+    
+    @Override
+    public NuxeoApp getNuxeoApp(String appName) {
+        return configuredNuxeoApps.get(appName);
+    }
 
     @Override
     public JSONArray getNuxeoApps() {

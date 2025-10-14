@@ -1,0 +1,11 @@
+<component name="org.nuxeo.labs.multi.nuxeoapps.servlet">
+
+	<extension
+		target="org.nuxeo.ecm.platform.web.common.requestcontroller.service.RequestControllerService"
+		point="filterConfig">
+		<filterConfig name="multiNxApps" transactional="true">
+			<pattern>${org.nuxeo.ecm.contextPath}/multiNxApps.*</pattern>
+		</filterConfig>
+	</extension>
+
+</component>

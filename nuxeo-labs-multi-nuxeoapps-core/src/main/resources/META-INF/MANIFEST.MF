@@ -6,4 +6,5 @@ Bundle-Version: 1.0.0
 Bundle-Name: nuxeo-labs-multi-nuxeoapps-core
 Bundle-ManifestVersion: 2
 Bundle-SymbolicName: nuxeo-labs-multi-nuxeoapps-core;singleton=true
-Nuxeo-Component: OSGI-INF/multinuxeoapp-service.xml
+Nuxeo-Component: OSGI-INF/multinuxeoapp-service.xml,
+ OSGI-INF/request-controller-contrib.xml
