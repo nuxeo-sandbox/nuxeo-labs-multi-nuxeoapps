@@ -190,6 +190,10 @@ public class NuxeoAppServletUtils {
         // Default name
         return "downloaded-file";
     }
+
+    public static boolean isRedirect(int code) {
+        return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
+    }
     
 
 }

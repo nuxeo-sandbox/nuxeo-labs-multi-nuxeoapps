@@ -16,7 +16,7 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps;
+package org.nuxeo.labs.multi.nuxeoapps.authentication;
 
 import static org.nuxeo.ecm.jwt.JWTServiceImpl.NUXEO_ISSUER;
 

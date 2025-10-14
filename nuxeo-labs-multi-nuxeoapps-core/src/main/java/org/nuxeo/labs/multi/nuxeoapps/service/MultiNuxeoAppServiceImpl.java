@@ -16,7 +16,7 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps;
+package org.nuxeo.labs.multi.nuxeoapps.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +37,8 @@ import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.CoreInstance;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.NuxeoPrincipal;
+import org.nuxeo.labs.multi.nuxeoapps.NuxeoAppCurrent;
+import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 import org.nuxeo.runtime.model.ComponentContext;
 import org.nuxeo.runtime.model.DefaultComponent;
 import org.nuxeo.runtime.model.Extension;

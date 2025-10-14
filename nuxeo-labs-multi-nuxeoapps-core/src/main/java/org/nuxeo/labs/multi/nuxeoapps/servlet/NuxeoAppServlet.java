@@ -29,18 +29,21 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
 import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.NuxeoException;
-import org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService;
-import org.nuxeo.labs.multi.nuxeoapps.NuxeoApp;
+import org.nuxeo.ecm.core.api.impl.blob.JSONBlob;
+import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
+import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 import org.nuxeo.runtime.api.Framework;
 
 /**
  * 
- * @since TODO
+ * @since 2023
  */
 public class NuxeoAppServlet extends HttpServlet  {
     
@@ -54,7 +57,7 @@ public class NuxeoAppServlet extends HttpServlet  {
     public void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         
         // My reminder: the path that comes after /multiNxApps/ is available directly via request.getPathInfo()
-        // So if the full url is https://myserver.com/nuxeo/multiNxApps/myApp/distant/url/with/slashes, the
+        // So if the full url is https://myserver.com/nuxeo/multiNxApps/myApp/distant/url/with/slashes,
         // getPathInfo() returns "/myApp/distant/url/with/slashes"
         String pathInfo = req.getPathInfo();
         // Security check, JIC
@@ -83,9 +86,17 @@ public class NuxeoAppServlet extends HttpServlet  {
         // Call distant server
         Blob blob;
         try {
-            blob = remoteApp.getBlob(remotePath);
+            blob = remoteApp.getBlob(remotePath, true);
         } catch (IOException | InterruptedException e) {
             resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to get the blob from remote Nuxeo App: " + e.getMessage());
+            return;
+        }
+        
+        if(blob instanceof JSONBlob) {
+            // We do have a redirect
+            JSONObject redirectInfoJson = new JSONObject(blob.getString());
+            resp.setStatus(redirectInfoJson.getInt("status"));
+            resp.setHeader("Location", redirectInfoJson.getString("location"));
             return;
         }
 
@@ -96,16 +107,10 @@ public class NuxeoAppServlet extends HttpServlet  {
         }
         resp.setContentType(mimeType);
 
-        long len = blob.getLength();
-        if (len >= 0 && len <= Integer.MAX_VALUE) {
-            resp.setContentLength((int) len); // ok for typical sizes; omit if uncertain
-        } else if (len > Integer.MAX_VALUE) {
-            // For very large files, prefer setHeader to avoid int overflow
-            resp.setHeader("Content-Length", Long.toString(len));
-        }
+        resp.setHeader("Content-Length", Long.toString(blob.getLength()));
 
         String filename = blob.getFilename();
-        if (filename != null && !filename.isBlank()) {
+        if (StringUtils.isNotBlank(filename)) {
             // Content-Disposition (RFC 5987 for UTF-8 filename*)
             String ascii = filename.replace("\"", "");
             String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");

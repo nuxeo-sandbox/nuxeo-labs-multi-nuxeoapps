@@ -16,7 +16,7 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps;
+package org.nuxeo.labs.multi.nuxeoapps.remote;
 
 import java.io.IOException;
 import java.net.URI;
@@ -36,6 +36,9 @@ import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.NuxeoException;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationBASIC;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationJWT;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
@@ -44,10 +47,15 @@ import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 public class NuxeoApp extends AbstractNuxeoApp {
 
     protected NuxeoAppAuthentication nuxeoAppAuthentication = null;
+    
+    @Override
+    protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
+        return nuxeoAppAuthentication;
+    }
 
     public NuxeoApp(String appName, String appUrl, String basicUser, String basicPwd) {
 
-        initialize(appName, appUrl, false);
+        super.initialize(appName, appUrl, false);
 
         nuxeoAppAuthentication = new NuxeoAppAuthenticationBASIC(basicUser, basicPwd);
 
@@ -56,7 +64,7 @@ public class NuxeoApp extends AbstractNuxeoApp {
     public NuxeoApp(String appName, String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
             String jwtSecret) {
 
-        initialize(appName, appUrl, false);
+        super.initialize(appName, appUrl, false);
 
         nuxeoAppAuthentication = new NuxeoAppAuthenticationJWT(appUrl, tokenUser, tokenClientId, tokenClientSecret,
                 jwtSecret);
@@ -81,7 +89,7 @@ public class NuxeoApp extends AbstractNuxeoApp {
     }
 
     public JSONObject call(String nxql, String enrichers, String properties, int pageIndex) {
-
+        
         JSONObject result = null;
 
         result = call(null, nxql, enrichers, properties, pageIndex);
@@ -183,74 +191,78 @@ public class NuxeoApp extends AbstractNuxeoApp {
 
         return jsonApp;
     }
-
-    @Override
-    public Blob getBlob(String relativePath) throws IOException, InterruptedException {
-
-        String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue();
-
-        String url = relativePath;
-        if (!url.startsWith("/")) {
-            url = "/" + url;
-        }
-        if (url.indexOf("&clientReason=download") < 0) {
-            url += "&clientReason=download";
-        }
-
-        String targetUrl = appUrl + url;
-
-        HttpClient client = HttpClient.newBuilder()
-                                      .connectTimeout(Duration.ofSeconds(60))
-                                      .followRedirects(HttpClient.Redirect.NEVER) // Automatic redirect fails when using
-                                                                                  // S3 direct download
-                                      .build();
-
-        HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
-                                         .timeout(Duration.ofSeconds(40))
-                                         .header("Authorization", authHeaderValue)
-                                         .header("Accept", "*/*")
-                                         .GET()
-                                         .build();
-
-        Blob blob = Blobs.createBlobWithExtension(".bin");// Create a temp. file
-        Path blobFilePath = blob.getFile().toPath();
-
-        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
-
-        if (isRedirect(response.statusCode())) {
-            String location = response.headers()
-                                      .firstValue("Location")
-                                      .orElseThrow(() -> new IOException("Redirect without Location header"));
-
-            request = HttpRequest.newBuilder(URI.create(location)).GET().header("Accept", "*/*").build();
-
-            response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
-        }
-
-        if (response.statusCode() != 200) {
-            throw new IOException("Failed to download file: HTTP " + response.statusCode());
-        }
-
-        HttpHeaders headers = response.headers();
-        String mimeType = headers.firstValue("Content-Type").orElse(null);
-        // Detect MIME type if not provided
-        if (mimeType == null) {
-            mimeType = Files.probeContentType(blobFilePath);
-            if (mimeType == null) {
-                mimeType = "application/octet-stream";
-            }
-        }
-        blob.setMimeType(mimeType);
-
-        String fileName = NuxeoAppServletUtils.extractFileName(headers.firstValue("Content-Disposition").orElse(null), url);
-        blob.setFilename(fileName);
-
-        return blob;
-
-    }
-
-    private static boolean isRedirect(int code) {
-        return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
-    }
+    
+//    @Override
+//    public Blob getBlob(String relativePath, boolean returnRedirectInfo) throws IOException, InterruptedException {
+//
+//        String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue();
+//
+//        String url = relativePath;
+//        if (!url.startsWith("/")) {
+//            url = "/" + url;
+//        }
+//        if (url.indexOf("&clientReason=download") < 0) {
+//            url += "&clientReason=download";
+//        }
+//
+//        String targetUrl = appUrl + url;
+//
+//        HttpClient client = HttpClient.newBuilder()
+//                                      .connectTimeout(Duration.ofSeconds(60))
+//                                      .followRedirects(HttpClient.Redirect.NEVER) // Automatic redirect fails when using
+//                                                                                  // S3 direct download
+//                                      .build();
+//
+//        HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
+//                                         .timeout(Duration.ofSeconds(40))
+//                                         .header("Authorization", authHeaderValue)
+//                                         .header("Accept", "*/*")
+//                                         .GET()
+//                                         .build();
+//
+//        Blob blob = Blobs.createBlobWithExtension(".bin");// Create a temp. file
+//        Path blobFilePath = blob.getFile().toPath();
+//
+//        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
+//
+//        if (NuxeoAppServletUtils.isRedirect(response.statusCode())) {
+//            String location = response.headers()
+//                                      .firstValue("Location")
+//                                      .orElseThrow(() -> new IOException("Redirect without Location header"));
+//
+//            if (returnRedirectInfo) {
+//                JSONObject redirectInfoJson = new JSONObject();
+//                redirectInfoJson.put("status", response.statusCode());
+//                redirectInfoJson.put("location", location);
+//                blob = Blobs.createJSONBlob(redirectInfoJson.toString());
+//                return blob;
+//            }
+//            // Do download the blob of caller wants it
+//            request = HttpRequest.newBuilder(URI.create(location)).GET().header("Accept", "*/*").build();
+//            response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
+//        }
+//
+//        if (response.statusCode() != 200) {
+//            throw new IOException("Failed to download file: HTTP " + response.statusCode());
+//        }
+//
+//        HttpHeaders headers = response.headers();
+//        String mimeType = headers.firstValue("Content-Type").orElse(null);
+//        // Detect MIME type if not provided
+//        if (mimeType == null) {
+//            mimeType = Files.probeContentType(blobFilePath);
+//            if (mimeType == null) {
+//                mimeType = "application/octet-stream";
+//            }
+//        }
+//        blob.setMimeType(mimeType);
+//
+//        String fileName = NuxeoAppServletUtils.extractFileName(headers.firstValue("Content-Disposition").orElse(null),
+//                url);
+//        blob.setFilename(fileName);
+//
+//        return blob;
+//
+//    }
 
 }

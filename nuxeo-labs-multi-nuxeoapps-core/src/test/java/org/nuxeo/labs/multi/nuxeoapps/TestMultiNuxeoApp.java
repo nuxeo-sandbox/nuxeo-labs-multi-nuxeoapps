@@ -9,6 +9,7 @@ import org.json.JSONArray;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;

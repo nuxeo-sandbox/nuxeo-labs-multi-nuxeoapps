@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <component
-	name="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService">
+	name="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService">
 
 	<implementation
-		class="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppServiceImpl" />
+		class="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppServiceImpl" />
 
 	<service>
 		<provide
-			interface="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService" />
+			interface="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService" />
 	</service>
 
 	<extension-point name="nuxeoapp">
 		<object
-			class="org.nuxeo.labs.multi.nuxeoapps.NuxeoAppDescriptor" />
+			class="org.nuxeo.labs.multi.nuxeoapps.service.NuxeoAppDescriptor" />
 	</extension-point>
 
 	<!-- Example contributions. First with basic auth, second with token
 	     Sensitive values are read from nuxeo.conf using your custom parameters -->
 	<!--
 	<extension
-		target="org.nuxeo.labs.multi.nuxeoapps.MultiNuxeoAppService"
+		target="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService"
 		point="nuxeoapp">
 		<nuxeoapp>
 			<appName>MarketingApp</appName>

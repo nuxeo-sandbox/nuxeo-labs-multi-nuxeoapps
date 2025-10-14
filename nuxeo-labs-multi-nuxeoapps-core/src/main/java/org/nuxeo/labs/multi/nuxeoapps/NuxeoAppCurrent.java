@@ -38,6 +38,9 @@ import org.nuxeo.ecm.core.io.registry.MarshallerHelper;
 import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
 import org.nuxeo.ecm.platform.query.api.PageProvider;
 import org.nuxeo.ecm.platform.query.api.PageProviderDefinition;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
+import org.nuxeo.labs.multi.nuxeoapps.remote.AbstractNuxeoApp;
+import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 import org.nuxeo.runtime.api.Framework;
 
 /**
@@ -132,6 +135,12 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
 
             return result;
         }
+    }
+
+    @Override
+    protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
+        // This one should never be called for the Currentnuxeo app
+        throw new UnsupportedOperationException();
     }
 
 }

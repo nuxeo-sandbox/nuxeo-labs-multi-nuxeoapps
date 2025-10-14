@@ -17,7 +17,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
+import org.nuxeo.ecm.core.api.impl.blob.JSONBlob;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
+import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
+import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
@@ -186,10 +190,26 @@ public class TestMultiNuxeoAppWithCustomConfig {
         assertNotNull(app);
         Blob b = app.getBlob("/nxfile/default/d14837dc-bfcd-41bb-8886-ae1b8bfbc17c/file:content/NYCHighLine.jpg?changeToken=3-0");
         */
+        // Test should have redirect. In our settngs, TEST_AppBASIC2 is an app on AWS with direct download
+        // Cmment this if it's not your case
         NuxeoApp app = multiNuxeoAppService.getNuxeoApp("TEST_AppBASIC2");
         assertNotNull(app);
-        Blob b = app.getBlob("/nxfile/default/b5af5424-7080-4779-abdd-b3fdcb8d8eb6/thumb:thumbnail/181002121444-file-exlarge-169_small.jpeg?changeToken=25-0");
+        
+        // Get redirect info
+        Blob b = app.getBlob("/nxfile/default/b5af5424-7080-4779-abdd-b3fdcb8d8eb6/thumb:thumbnail/181002121444-file-exlarge-169_small.jpeg?changeToken=25-0", true);
         assertNotNull(b);
+        assertTrue(b instanceof JSONBlob);
+        JSONObject redirectInfoJson = new JSONObject(b.getString());
+        assertTrue(redirectInfoJson.has("status"));
+        assertTrue(redirectInfoJson.has("location"));
+        int status = redirectInfoJson.getInt("status");
+        assertTrue(NuxeoAppServletUtils.isRedirect(status));
+        
+        String location = redirectInfoJson.getString("location");
+        assertTrue(StringUtils.isNotBlank(location));
+        
+        // Get the file
+        b = app.getBlob("/nxfile/default/b5af5424-7080-4779-abdd-b3fdcb8d8eb6/thumb:thumbnail/181002121444-file-exlarge-169_small.jpeg?changeToken=25-0", false);
         assertEquals("181002121444-file-exlarge-169_small.jpeg", b.getFilename());
         
     }

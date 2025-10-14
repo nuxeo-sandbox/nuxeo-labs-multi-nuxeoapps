@@ -16,11 +16,12 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps;
+package org.nuxeo.labs.multi.nuxeoapps.service;
 
 import java.util.List;
 
 import org.json.JSONArray;
+import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 
 /**
  * Perform a search on several distant Nuxeo servers.
