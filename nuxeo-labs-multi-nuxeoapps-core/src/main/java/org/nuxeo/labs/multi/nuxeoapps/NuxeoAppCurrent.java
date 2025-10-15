@@ -39,7 +39,6 @@ import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
 import org.nuxeo.ecm.platform.query.api.PageProvider;
 import org.nuxeo.ecm.platform.query.api.PageProviderDefinition;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
-import org.nuxeo.labs.multi.nuxeoapps.remote.AbstractNuxeoApp;
 import org.nuxeo.runtime.api.Framework;
 
 /**

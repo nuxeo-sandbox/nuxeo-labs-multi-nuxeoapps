@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
+import org.nuxeo.labs.multi.nuxeoapps.NuxeoApp;
 
 /**
  * Perform a search on several distant Nuxeo servers.

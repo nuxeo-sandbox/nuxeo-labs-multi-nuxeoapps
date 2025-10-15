@@ -16,7 +16,7 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps.remote;
+package org.nuxeo.labs.multi.nuxeoapps;
 
 import java.io.IOException;
 import java.net.URI;
@@ -33,7 +33,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
-import org.nuxeo.labs.multi.nuxeoapps.Utilities;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 

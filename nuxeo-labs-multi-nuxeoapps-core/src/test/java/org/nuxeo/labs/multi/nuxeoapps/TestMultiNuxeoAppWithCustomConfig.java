@@ -4,9 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -14,7 +11,6 @@ import javax.inject.Inject;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.Assume;
 import org.junit.Before;
@@ -24,8 +20,6 @@ import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.impl.blob.JSONBlob;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
-import org.nuxeo.labs.multi.nuxeoapps.remote.AbstractNuxeoApp;
-import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppServiceImpl;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
@@ -272,9 +266,6 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONArray arr = resultObj.getJSONArray("results");
         
-        File f = new File("/Users/thibaud.arguillere/Downloads/hop.json");
-        org.apache.commons.io.FileUtils.writeStringToFile(f, arr.toString(2), Charset.defaultCharset(), false);
-        
         for(int i = 0; i < arr.length(); i++) {
             JSONObject oneResult = arr.getJSONObject(i);
             
@@ -289,9 +280,6 @@ public class TestMultiNuxeoAppWithCustomConfig {
         assertNotNull(resultObj);
 
         arr = resultObj.getJSONArray("results");
-        
-         f = new File("/Users/thibaud.arguillere/Downloads/hop-2.json");
-        org.apache.commons.io.FileUtils.writeStringToFile(f, arr.toString(2), Charset.defaultCharset(), false);
         
     }
 

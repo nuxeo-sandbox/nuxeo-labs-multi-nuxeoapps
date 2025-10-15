@@ -37,7 +37,7 @@ import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.api.impl.blob.JSONBlob;
-import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
+import org.nuxeo.labs.multi.nuxeoapps.NuxeoApp;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 import org.nuxeo.runtime.api.Framework;
 

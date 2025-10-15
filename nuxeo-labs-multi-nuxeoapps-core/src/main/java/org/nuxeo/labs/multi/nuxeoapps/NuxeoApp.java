@@ -16,7 +16,7 @@
  * Contributors:
  *     Thibaud Arguillere
  */
-package org.nuxeo.labs.multi.nuxeoapps.remote;
+package org.nuxeo.labs.multi.nuxeoapps;
 
 import java.io.IOException;
 import java.net.URI;

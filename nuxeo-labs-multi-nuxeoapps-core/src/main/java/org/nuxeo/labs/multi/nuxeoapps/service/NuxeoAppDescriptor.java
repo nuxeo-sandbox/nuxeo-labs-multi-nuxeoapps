@@ -21,8 +21,8 @@ package org.nuxeo.labs.multi.nuxeoapps.service;
 import org.apache.commons.lang3.StringUtils;
 import org.nuxeo.common.xmap.annotation.XNode;
 import org.nuxeo.common.xmap.annotation.XObject;
+import org.nuxeo.labs.multi.nuxeoapps.NuxeoApp;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationJWT;
-import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 
 @XObject("nuxeoapp")
 public class NuxeoAppDescriptor {
