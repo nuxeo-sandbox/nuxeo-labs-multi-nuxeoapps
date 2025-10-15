@@ -1,10 +1,10 @@
 <!-- See documentation at http://doc.nuxeo.com/x/HgIz -->
-<package type="addon" name="nuxeo-labs-multi-nuxeoapps-search" version="@VERSION@">
+<package type="addon" name="nuxeo-labs-multi-nuxeoapps" version="@VERSION@">
   <title>Nuxeo Labs Multi Nuxeo Apps Search</title>
   <description>
     <p>Multi Nuxeo Apps Search</p>
   </description>
-  <home-page>https://github.com/nuxeo-sandbox/nuxeo-labs-multi-nuxeoapps-search</home-page>
+  <home-page>https://github.com/nuxeo-sandbox/nuxeo-labs-multi-nuxeoapps</home-page>
   <vendor>Hyland</vendor>
   <installer restart="true" />
   <uninstaller restart="true" />

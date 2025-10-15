@@ -129,8 +129,9 @@
       <fileset dir="${outdir}/marketplace/install/bundles" />
     </nx:studioExtraction>
 
-    <zip destfile="${outdir}/${maven.project.artifactId}-${maven.project.version}.zip" basedir="${outdir}/marketplace" />
-    <artifact:attach file="${outdir}/${maven.project.artifactId}-${maven.project.version}.zip" type="zip" />
+    <!-- replacing ${maven.project.artifactId}, I don't want the "-package" suffix nuxeo-labs-multi-nuxeoapps -->
+    <zip destfile="${outdir}/nuxeo-labs-multi-nuxeoapps-${maven.project.version}.zip" basedir="${outdir}/marketplace" />
+    <artifact:attach file="${outdir}/nuxeo-labs-multi-nuxeoapps-${maven.project.version}.zip" type="zip" />
 
     <!-- cleanups -->
     <delete dir="${outdir}/marketplace" failonerror="false" />
