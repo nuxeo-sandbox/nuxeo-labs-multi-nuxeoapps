@@ -22,32 +22,27 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Map;
 
-import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
-import org.nuxeo.ecm.core.api.Blob;
-import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationBASIC;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationJWT;
-import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
  * @since 2023
  */
 public class NuxeoApp extends AbstractNuxeoApp {
 
+    public static final int DEFAULT_PAGE_SIZE = 100;
+
     protected NuxeoAppAuthentication nuxeoAppAuthentication = null;
-    
+
     @Override
     protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
         return nuxeoAppAuthentication;
@@ -76,11 +71,11 @@ public class NuxeoApp extends AbstractNuxeoApp {
         String appName = jsonApp.getString("jsonApp");
         String appUrl = jsonApp.getString("appUrl");
 
-        if (NuxeoAppAuthenticationBASIC.hasEnoughValues(jsonApp)) {
+        if (NuxeoAppAuthenticationBASIC.hasRequiredFields(jsonApp)) {
             return new NuxeoApp(appName, appUrl, jsonApp.getString("basicUser"), jsonApp.getString("basicPwd"));
         }
 
-        if (NuxeoAppAuthenticationJWT.hasEnoughValues(jsonApp)) {
+        if (NuxeoAppAuthenticationJWT.hasRequiredFields(jsonApp)) {
             return new NuxeoApp(appName, appUrl, jsonApp.getString("tokenUser"), jsonApp.getString("tokenClientId"),
                     jsonApp.getString("tokenClientSecret"), jsonApp.getString("jwtSecret"));
         }
@@ -88,18 +83,19 @@ public class NuxeoApp extends AbstractNuxeoApp {
         throw new NuxeoException("Object is not BASIC not JWT authentication.");
     }
 
-    public JSONObject call(String nxql, String enrichers, String properties, int pageIndex) {
-        
+    public JSONObject call(String nxql, String enrichers, String properties, int pageIndex, int pageSize) {
+
         JSONObject result = null;
 
-        result = call(null, nxql, enrichers, properties, pageIndex);
+        result = call(null, nxql, enrichers, properties, pageIndex, pageSize);
 
         return result;
     }
 
-    public JSONObject call(String currentUserName, String nxql, String enrichers, String properties, int pageIndex) {
+    public JSONObject call(String currentUserName, String nxql, String enrichers, String properties, int pageIndex,
+            int pageSize) {
 
-        JSONObject result = new JSONObject();
+        JSONObject result;
 
         try {
             String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue(currentUserName);
@@ -108,9 +104,13 @@ public class NuxeoApp extends AbstractNuxeoApp {
             String encodedNxql;
             encodedNxql = URLEncoder.encode(nxql, StandardCharsets.UTF_8);
             targetUrl += "?query=" + encodedNxql;
-            if (pageIndex > 0) {
+            if (pageIndex > 1) {
                 targetUrl += "&currentPageIndex=" + pageIndex;
             }
+            if (pageSize < 1) {
+                pageSize = DEFAULT_PAGE_SIZE;
+            }
+            targetUrl += "&pageSize=" + pageSize;
 
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
@@ -129,44 +129,48 @@ public class NuxeoApp extends AbstractNuxeoApp {
 
             // Read response
             int status = resp.statusCode();
-            if (status == 200) {
 
+            if (status == 200) { // ==============================> All good
                 result = new JSONObject(resp.body());
+                updateDocumentsEntityType(result, status);
+                
+            } else { // ==========================================> Error occured
+                String body = resp.body();
+                String errMessage = null;
 
-                updateEntries(result, status);
+                JSONObject errJson;
+                try {
+                    errJson = new JSONObject(body);
+                    errMessage = errJson.optString("message", null);
+                } catch (JSONException e) {
+                    errJson = null;
+                }
 
-            } else {
-                result = createMultiNxAppInfo(status, null, resp.body());
+                if (fullStackOnError) {
+                    if (errJson == null) {
+                        errMessage = body;
+                    }
+                } else {
+                    if (errMessage == null) {
+                        int maxSize = 5 * 1024;
+
+                        errMessage = body;
+                        // We receive UTF-8 English, so it's safe to consider one char = one byte.
+                        if (errMessage.length() > maxSize) {
+                            errMessage = "[TRUNCATED TO 5k] " + errMessage.substring(0, maxSize);
+                        }
+                    }
+                }
+                result = generateErrorObject(status, "An error occured: " + errMessage, appName, true,
+                        fullStackOnError ? errJson : (JSONObject) null);
             }
 
         } catch (IOException | InterruptedException e) {
-            result = generateErrorObject(-1, "An error occured: " + e.getMessage(), appName, true, null);
+            result = generateErrorObject(-1, "An error occured: " + e.getMessage(), appName, true,
+                    fullStackOnError ? e : (Throwable) null);
         }
 
         return result;
-    }
-
-    public static JSONObject generateErrorObject(int httpResponseStatus, String responseMessage, String appName,
-            boolean withEmptyEntries, Map<String, String> otherFields) {
-
-        JSONObject result = new JSONObject();
-        if (withEmptyEntries) {
-            result.put("entity-type", "documents");
-            result.put("entries", new JSONArray());
-        }
-        if (otherFields != null) {
-            otherFields.forEach(result::put);
-        }
-
-        JSONObject obj = new JSONObject();
-        obj.put("hasError", true);
-        obj.put("httpResponseStatus", httpResponseStatus);
-        obj.put("responseMessage", responseMessage);
-        obj.put("appName", appName);
-        result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, obj);
-
-        return result;
-
     }
 
     public JSONObject toJSONObject() {
@@ -191,78 +195,5 @@ public class NuxeoApp extends AbstractNuxeoApp {
 
         return jsonApp;
     }
-    
-//    @Override
-//    public Blob getBlob(String relativePath, boolean returnRedirectInfo) throws IOException, InterruptedException {
-//
-//        String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue();
-//
-//        String url = relativePath;
-//        if (!url.startsWith("/")) {
-//            url = "/" + url;
-//        }
-//        if (url.indexOf("&clientReason=download") < 0) {
-//            url += "&clientReason=download";
-//        }
-//
-//        String targetUrl = appUrl + url;
-//
-//        HttpClient client = HttpClient.newBuilder()
-//                                      .connectTimeout(Duration.ofSeconds(60))
-//                                      .followRedirects(HttpClient.Redirect.NEVER) // Automatic redirect fails when using
-//                                                                                  // S3 direct download
-//                                      .build();
-//
-//        HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
-//                                         .timeout(Duration.ofSeconds(40))
-//                                         .header("Authorization", authHeaderValue)
-//                                         .header("Accept", "*/*")
-//                                         .GET()
-//                                         .build();
-//
-//        Blob blob = Blobs.createBlobWithExtension(".bin");// Create a temp. file
-//        Path blobFilePath = blob.getFile().toPath();
-//
-//        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
-//
-//        if (NuxeoAppServletUtils.isRedirect(response.statusCode())) {
-//            String location = response.headers()
-//                                      .firstValue("Location")
-//                                      .orElseThrow(() -> new IOException("Redirect without Location header"));
-//
-//            if (returnRedirectInfo) {
-//                JSONObject redirectInfoJson = new JSONObject();
-//                redirectInfoJson.put("status", response.statusCode());
-//                redirectInfoJson.put("location", location);
-//                blob = Blobs.createJSONBlob(redirectInfoJson.toString());
-//                return blob;
-//            }
-//            // Do download the blob of caller wants it
-//            request = HttpRequest.newBuilder(URI.create(location)).GET().header("Accept", "*/*").build();
-//            response = client.send(request, HttpResponse.BodyHandlers.ofFile(blobFilePath));
-//        }
-//
-//        if (response.statusCode() != 200) {
-//            throw new IOException("Failed to download file: HTTP " + response.statusCode());
-//        }
-//
-//        HttpHeaders headers = response.headers();
-//        String mimeType = headers.firstValue("Content-Type").orElse(null);
-//        // Detect MIME type if not provided
-//        if (mimeType == null) {
-//            mimeType = Files.probeContentType(blobFilePath);
-//            if (mimeType == null) {
-//                mimeType = "application/octet-stream";
-//            }
-//        }
-//        blob.setMimeType(mimeType);
-//
-//        String fileName = NuxeoAppServletUtils.extractFileName(headers.firstValue("Content-Disposition").orElse(null),
-//                url);
-//        blob.setFilename(fileName);
-//
-//        return blob;
-//
-//    }
 
 }

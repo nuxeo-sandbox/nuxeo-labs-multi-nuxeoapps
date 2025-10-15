@@ -21,12 +21,12 @@ package org.nuxeo.labs.multi.nuxeoapps.authentication;
 import org.json.JSONObject;
 
 /**
- * @since TODO
+ * @since 2023
  */
 public interface NuxeoAppAuthentication {
 
     /**
-     * For JWT authenticaiton, {@code user} is used only once. After the call, it is reset internally.
+     * For JWT authentication, {@code user} is used only once. After the call, it is reset.
      * For BASIC authentication, {@code user} is not used at all
      * 
      * @param user
@@ -39,6 +39,22 @@ public interface NuxeoAppAuthentication {
         return getAutorizationHeaderValue(null);
     }
 
+    /**
+     * 
+     * @return a JSONObject with the fields of the implementor
+     * @since 2023
+     */
     JSONObject toJSONObject();
+    
+    /**
+     * Check if the object has the fields required for instanciating the class
+     * 
+     * @param obj
+     * @return
+     * @since 2023
+     */
+    static boolean hasRequiredFields(JSONObject obj) {
+        throw new UnsupportedOperationException("Must be implemented in implementors.");
+    }
 
 }

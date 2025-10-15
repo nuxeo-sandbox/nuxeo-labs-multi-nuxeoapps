@@ -26,7 +26,7 @@ import org.nuxeo.ecm.core.api.NuxeoException;
 
 /**
  * 
- * @since TODO
+ * @since 2023
  */
 public class NuxeoAppAuthenticationBASIC implements NuxeoAppAuthentication {
 
@@ -59,7 +59,8 @@ public class NuxeoAppAuthenticationBASIC implements NuxeoAppAuthentication {
         return obj;
     }
 
-    public static boolean hasEnoughValues(JSONObject obj) {
+    // This is an override
+    public static boolean hasRequiredFields(JSONObject obj) {
 
         return obj.has("basicUser") && obj.has("basicPwd");
     }

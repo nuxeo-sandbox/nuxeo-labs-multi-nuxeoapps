@@ -33,11 +33,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
+import org.nuxeo.labs.multi.nuxeoapps.Utilities;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
- * Base class for all NuxeoApp, providing centrfalized shared methods
+ * Base class for all NuxeoApp, providing centralized shared methods
  * 
  * @since 2023
  */
@@ -48,9 +49,19 @@ public abstract class AbstractNuxeoApp {
     String appName;
 
     String appUrl;
-    
+
     boolean isLocalNuxeo;
 
+    protected boolean fullStackOnError = false;
+
+    /**
+     * Initialize the internal fields
+     * 
+     * @param appName
+     * @param appUrl
+     * @param isLocalNuxeo
+     * @since 2023
+     */
     public void initialize(String appName, String appUrl, boolean isLocalNuxeo) {
 
         this.appName = appName;
@@ -58,24 +69,54 @@ public abstract class AbstractNuxeoApp {
         this.isLocalNuxeo = isLocalNuxeo;
     }
 
+    /**
+     * @return the application name
+     * @since 2023
+     */
     public String getAppName() {
         return appName;
     }
 
+    /**
+     * @return the application url
+     * @since 2023
+     */
     public String getAppUrl() {
         return appUrl;
     }
 
-    public void updateEntries(JSONObject result, Integer status) {
-        
+    /**
+     * If the call returns a statusCode != 200, the whole stack will be put in the result if fullStackOnError is true.
+     * 
+     * @param value
+     * @since 2023
+     */
+    public void setFullStackOnError(boolean value) {
+        fullStackOnError = value;
+    }
+
+    /**
+     * {@code result} is expected to be a "documents" entity-type.
+     * The method:
+     * - Gets the "entries" array property of {@code result} and update all urls it can find in blobs, replacing them
+     * with a URL to the {@link NuxeoAppServlet}
+     * - Updates the "documents" object with info about the NuxeoApp
+     * Also add
+     * 
+     * @param result
+     * @param status
+     * @since 2023
+     */
+    public void updateDocumentsEntityType(JSONObject result, Integer status) {
+
         JSONArray entries = result.getJSONArray("entries");
         for (int i = 0; i < entries.length(); i++) {
-            
+
             JSONObject oneDoc = entries.getJSONObject(i);
-            
+
             // Change blob URLs
             NuxeoAppServletUtils.updateBlobUrlsInProperties(oneDoc, getAppName(), isLocalNuxeo);
-            
+
             // Add NuxeoApp info
             JSONObject info = createMultiNxAppInfo(null, appUrl + "/ui/#!/doc/" + oneDoc.getString("uid"), null);
             oneDoc.put(MULTI_NUXEO_APPS_PROPERTY_NAME, info);
@@ -85,7 +126,7 @@ public abstract class AbstractNuxeoApp {
         result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, createMultiNxAppInfo(status, null, null));
     }
 
-    public JSONObject createMultiNxAppInfo(Integer httpStatus, String docFullUrl, String message) {
+    protected JSONObject createMultiNxAppInfo(Integer httpStatus, String docFullUrl, String message) {
 
         JSONObject obj = new JSONObject();
 
@@ -103,16 +144,63 @@ public abstract class AbstractNuxeoApp {
         return obj;
 
     }
-    
-    // Implemented only in sub-classes
+
+    public static JSONObject generateErrorObject(int httpResponseStatus, String responseMessage, String appName,
+            boolean withEmptyEntries, Throwable exception) {
+
+        JSONObject exceptionJson = null;
+        if (exception != null) {
+            exceptionJson = Utilities.exceptionToJson(exception);
+        }
+        return generateErrorObject(httpResponseStatus, responseMessage, appName, withEmptyEntries, exceptionJson);
+
+    }
+
+    public static JSONObject generateErrorObject(int httpResponseStatus, String responseMessage, String appName,
+            boolean withEmptyEntries, JSONObject exceptionAsJson) {
+        JSONObject result = new JSONObject();
+        if (withEmptyEntries) {
+            result.put("entity-type", "documents");
+            result.put("entries", new JSONArray());
+        }
+
+        JSONObject obj = new JSONObject();
+        obj.put("hasError", true);
+        obj.put("httpResponseStatus", httpResponseStatus);
+        obj.put("responseMessage", responseMessage);
+        obj.put("appName", appName);
+        if (exceptionAsJson != null) {
+            obj.put("exception", exceptionAsJson);
+        }
+        result.put(MULTI_NUXEO_APPS_PROPERTY_NAME, obj);
+
+        return result;
+    }
+
+    // Implemented only in sub-classes, but used in getBlob()
     protected abstract NuxeoAppAuthentication getNuxeoAppAuthentication();
-    
-    // To be overriden
+
+    /**
+     * Return the remote blob. {@code relativePath} is relative to the distant server (like "/nxfile/etc/etc")
+     * <br>
+     * If {@code returnRedirectInfo} is <code>true</code>, then the method does not download the blob to send it back to
+     * the caller. Instead, if the distant server returned redirect data, it is returned as is, in a JSONBlob. This
+     * handles the case where the distant Nuxeo server is configured to use AWS directDownload, for example.
+     * <br>
+     * If {@code returnRedirectInfo} is <code>false</code>, the method always returns the Blob.
+     * 
+     * @param relativePath
+     * @param returnRedirectInfo
+     * @return
+     * @throws IOException
+     * @throws InterruptedException
+     * @since 2023
+     */
     public Blob getBlob(String relativePath, boolean returnRedirectInfo) throws IOException, InterruptedException {
 
         // Implement calling GET to get the blob
-       // throw new UnsupportedOperationException();
-        
+        // throw new UnsupportedOperationException();
+
         String authHeaderValue = getNuxeoAppAuthentication().getAutorizationHeaderValue();
 
         String url = relativePath;

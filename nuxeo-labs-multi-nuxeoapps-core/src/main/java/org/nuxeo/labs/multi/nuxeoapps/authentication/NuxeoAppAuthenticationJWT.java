@@ -81,7 +81,7 @@ public class NuxeoAppAuthenticationJWT implements NuxeoAppAuthentication {
         return obj;
     }
 
-    public static boolean hasEnoughValues(JSONObject obj) {
+    public static boolean hasRequiredFields(JSONObject obj) {
 
         return obj.has("tempTokenUser") && obj.has("tokenClientId") && obj.has("tokenClientSecret")
                 && obj.has("jwtSecret");

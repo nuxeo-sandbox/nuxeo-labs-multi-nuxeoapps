@@ -31,18 +31,22 @@ import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.NuxeoException;
 
 /**
+ * Utility class to handle URLs, mainly
  * 
- * @since TODO
+ * @since 2023
  */
 public class NuxeoAppServletUtils {
-    
-    public static List<String> BLOB_JSON_FIELDS = List.of("mime-type",
-                                                            "digestAlgorithm",
-                                                            "digest",
-                                                            "length",
-                                                            "data",
-                                                            "blobUrl");
-    
+
+    public static List<String> BLOB_JSON_FIELDS = List.of("mime-type", "digestAlgorithm", "digest", "length", "data",
+            "blobUrl");
+
+    /**
+     * Check if the object has the regular Blob fields
+     * 
+     * @param obj
+     * @return
+     * @since 2023
+     */
     public static boolean looksLikeABlob(JSONObject obj) {
         if (obj == null) {
             return false;
@@ -56,28 +60,41 @@ public class NuxeoAppServletUtils {
 
         return true;
     }
-    
+
+    /**
+     * {@code oneDocObj} must be a "document" entity-type.
+     * The method gets the "properties" object of {@code oneDocObj} and updates all urls it can find in blobs, replacing
+     * them
+     * with a URL to the {@link NuxeoAppServlet}
+     * <br>
+     * If {@code isLocalNuxeo} is <code>true</code>, the method does nothing (blob can be downloaded by caller directly)
+     * 
+     * @param oneDocObj
+     * @param appName
+     * @param isLocalNuxeo
+     * @since 2023
+     */
     public static void updateBlobUrlsInProperties(JSONObject oneDocObj, String appName, boolean isLocalNuxeo) {
-        
-        if(oneDocObj == null || isLocalNuxeo) {
+
+        if (oneDocObj == null || isLocalNuxeo) {
             return;
         }
-        
+
         String type = oneDocObj.optString("entity-type", null);
-        if(!StringUtils.equals("document", type)) {
-            throw new NuxeoException("Expting a document entity-type");
+        if (!StringUtils.equals("document", type)) {
+            throw new NuxeoException("Expecting a \"document\" entity-type");
         }
 
         // ====================> properties
         JSONObject properties = oneDocObj.optJSONObject("properties", null);
-        if(properties != null) {
-        
+        if (properties != null) {
+
             Deque<Object> stack = new ArrayDeque<>();
             stack.push(properties);
-    
+
             while (!stack.isEmpty()) {
                 Object node = stack.pop();
-    
+
                 if (node instanceof JSONObject obj) {
                     // If this object has a non-null "blobUrl", process it now
                     if (NuxeoAppServletUtils.looksLikeABlob(obj)) {
@@ -95,7 +112,7 @@ public class NuxeoAppServletUtils {
                             stack.push(child);
                         }
                     }
-    
+
                 } else if (node instanceof JSONArray arr) {
                     for (int i = 0; i < arr.length(); i++) {
                         Object child = arr.opt(i);
@@ -109,19 +126,28 @@ public class NuxeoAppServletUtils {
 
         // ====================> contextParameters and thumbnail
         JSONObject ctxParams = oneDocObj.optJSONObject("contextParameters", null);
-        if(ctxParams != null) {
+        if (ctxParams != null) {
             JSONObject thumbnailObj = ctxParams.optJSONObject("thumbnail", null);
-            if(thumbnailObj != null) {
+            if (thumbnailObj != null) {
                 String url = thumbnailObj.getString("url");
                 url = NuxeoAppServletUtils.buildMultiNxAppUrl(url, appName);
                 thumbnailObj.put("url", url);
             }
         }
-        
+
     }
-    
+
+    /**
+     * Cleans up the {@code url} by removing the base url of the distant server. So, for example:
+     * "https://my.server.com/nuxeo/nxfile/1234-abcd/etc/etc" becomes:
+     * "/nxfile/1234-abcd/etc/etc"
+     * 
+     * @param url
+     * @return
+     * @since TODO
+     */
     public static String removeUrlPrefix(String url) {
-        
+
         if (StringUtils.isBlank(url)) {
             return "";
         }
@@ -137,37 +163,61 @@ public class NuxeoAppServletUtils {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        
+
         return url;
     }
-    
-    public static String buildMultiNxAppUrl(String url, String appName) {
-        
-        return "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName + removeUrlPrefix(url);
-        
-    }
-    
-    public static String restoreOriginalUrl(String url, String appUrl, String appName) {
-        
-        url = StringUtils.remove(url,  "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName);
-        if(!url.startsWith("/")) {
-            url = "/" + url;
-        }
-        url = appUrl + url;
-        
-        return url;
-    }
-    
+
     /**
-     * Not strictly speaking a BlobUrlUtils, but strangely enough, I did not find
-     * a Nuxeo or Java API doing this
-     * @param contentDisposition
+     * Cleans up the URL: Replaces the original remote Nuxeo application base URL with access to the NuxeoAppServlet.
+     * <br>
+     * "https://my.server.com/nuxeo/nxfile/1234-abcd/etc/etc" becomes:
+     * "/multiNxApps/DistantAppName/nxfile/1234-abcd/etc/etc"
+     * 
      * @param url
+     * @param appName
      * @return
      * @since TODO
      */
+    public static String buildMultiNxAppUrl(String url, String appName) {
+
+        return "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName + removeUrlPrefix(url);
+
+    }
+
+    /**
+     * Cleans up the URL: Replaces the NuxeoAppServlet with the remote Nuxeo application base URL .
+     * <br>
+     * "/multiNxApps/DistantAppName/nxfile/1234-abcd/etc/etc" becomes
+     * "https://my.server.com/nuxeo/nxfile/1234-abcd/etc/etc"
+     * 
+     * @param url
+     * @param appUrl
+     * @param appName
+     * @return
+     * @since TODO
+     */
+    public static String restoreOriginalUrl(String url, String appUrl, String appName) {
+
+        url = StringUtils.remove(url, "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName);
+        if (!url.startsWith("/")) {
+            url = "/" + url;
+        }
+        url = appUrl + url;
+
+        return url;
+    }
+
+    /**
+     * Not strictly speaking a BlobUrlUtils, but strangely enough, I did not find
+     * a Nuxeo or Java API doing this in a single call
+     * 
+     * @param contentDisposition
+     * @param url
+     * @return
+     * @since 2023
+     */
     public static String extractFileName(String contentDisposition, String url) {
-        
+
         if (StringUtils.isNotBlank(contentDisposition)) {
             // Try filename*= (RFC 5987) first
             Matcher m = Pattern.compile("filename\\*=['\"]?UTF-8''([^'\"]+)").matcher(contentDisposition);
@@ -191,9 +241,15 @@ public class NuxeoAppServletUtils {
         return "downloaded-file";
     }
 
+    /**
+     * Yet another utility
+     * 
+     * @param code
+     * @return
+     * @since 2023
+     */
     public static boolean isRedirect(int code) {
         return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
     }
-    
 
 }

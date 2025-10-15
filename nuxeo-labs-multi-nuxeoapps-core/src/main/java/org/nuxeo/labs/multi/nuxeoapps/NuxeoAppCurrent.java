@@ -40,7 +40,6 @@ import org.nuxeo.ecm.platform.query.api.PageProvider;
 import org.nuxeo.ecm.platform.query.api.PageProviderDefinition;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
 import org.nuxeo.labs.multi.nuxeoapps.remote.AbstractNuxeoApp;
-import org.nuxeo.labs.multi.nuxeoapps.remote.NuxeoApp;
 import org.nuxeo.runtime.api.Framework;
 
 /**
@@ -76,29 +75,27 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
         return instance;
     }
 
-    public JSONObject search(CoreSession session, String finalNxql, String enrichers, String properties,
-            int pageIndex) {
+    public JSONObject search(CoreSession session, String finalNxql, String enrichers, String properties, int pageIndex,
+            int pageSize) {
 
         try {
-            PageProviderDefinition def = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true, true);
-            
+            PageProviderDefinition ppDef = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true, true);
+
             @SuppressWarnings("unchecked")
-            PageProvider<DocumentModel> pp =
-                    (PageProvider<DocumentModel>) PageProviderHelper.getPageProvider(
-                        session,
-                        def,
-                        (Map<String, String>) null, // namedParameters
-                        (List<String>) null,        // sortBy
-                        (List<String>) null,        // sortOrder
-                        (Long) null,                // pageSize
-                        Long.valueOf(pageIndex)     // currentPageIndex
-                    );
-    
-            PaginableDocumentModelListImpl res = new PaginableDocumentModelListImpl(pp);
-            if (res.hasError()) {
-                throw new NuxeoException(res.getErrorMessage());
+            PageProvider<DocumentModel> pp = (PageProvider<DocumentModel>) PageProviderHelper.getPageProvider(session,
+                    ppDef, (Map<String, String>) null, // namedParameters
+                    (List<String>) null, // sortBy
+                    (List<String>) null, // sortOrder
+                    Long.valueOf(pageSize), // pageSize
+                    Long.valueOf(pageIndex) // currentPageIndex
+            );
+
+            PaginableDocumentModelListImpl paginableDocList = new PaginableDocumentModelListImpl(pp);
+            if (paginableDocList.hasError()) {
+                throw new NuxeoException(paginableDocList.getErrorMessage());
             }
-    
+
+            // Convert to JSON "documents" entity-type
             String[] enrichersList = { "" };
             if (StringUtils.isNotBlank(enrichers)) {
                 enrichersList = Arrays.stream(enrichers.split(","))
@@ -113,26 +110,30 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
                                        .filter(s -> !s.isEmpty())
                                        .toArray(String[]::new);
             }
-            RenderingContext rCtx = RenderingContext.CtxBuilder.enrichDoc(enrichersList).properties(propertiesList).get();
+            RenderingContext rCtx = RenderingContext.CtxBuilder.enrichDoc(enrichersList)
+                                                               .properties(propertiesList)
+                                                               .get();
             String resultJsonStr;
             try {
-                resultJsonStr = MarshallerHelper.objectToJson(DocumentModelList.class, res, rCtx);
+                resultJsonStr = MarshallerHelper.objectToJson(DocumentModelList.class, paginableDocList, rCtx);
                 JSONObject result = new JSONObject(resultJsonStr);
                 // Assume it's always 200 in this context
-                updateEntries(result, 200);
+                updateDocumentsEntityType(result, 200);
                 return result;
             } catch (IOException e) {
-    
-                JSONObject result = NuxeoApp.generateErrorObject(-1, "An error occured: " + e.getMessage(),
-                        "Current Nuxeo Server", true, null);
-    
+                JSONObject result = generateErrorObject(-1, "An error occured: " + e.getMessage(),
+                        getAppName(), true, fullStackOnError ? e : (Throwable) null);
                 return result;
             }
         } catch (NuxeoException e) {
-            // Typically, no fulltext index in unittest (for now?)
-            JSONObject result = NuxeoApp.generateErrorObject(-1, "An error occured: " + e.getMessage(), getAppName(),
-                    true, null);
-
+            // Typically a malformed NXQL but also things like no fulltext index in unit-test (for now?)
+            String message = e.getMessage();
+            JSONObject exceptionJson = null;
+            if (fullStackOnError) {
+                exceptionJson = Utilities.exceptionToJson(e);
+            }
+            JSONObject result = generateErrorObject(-1, "An error occured: " + message, getAppName(), true,
+                    exceptionJson);
             return result;
         }
     }

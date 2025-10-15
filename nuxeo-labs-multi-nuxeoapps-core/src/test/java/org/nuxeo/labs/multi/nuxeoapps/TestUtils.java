@@ -11,6 +11,8 @@ import org.nuxeo.runtime.test.runner.TransactionalFeature;
 public class TestUtils {
 
     public static final String KEYWORD = "nuxeo";
+    
+    public static final int CREATE_DOCS_COUNT = 10;
 
     // These variables are used in the MultiNuxeoApps.xml ctest contribution
     protected static Boolean hasVariablesSet = null;
@@ -28,13 +30,13 @@ public class TestUtils {
         return hasVariablesSet;
     }
 
-    public static void createDocs(CoreSession session) {
+    public static void createDocs(CoreSession session, TransactionalFeature transactionalFeature) {
 
         int countWithValue = 0;
 
-        for (int i = 1; i < 11; i++) {
-            DocumentModel doc = session.createDocumentModel("/", "file-" + i, "File");
-            doc.setPropertyValue("dc:title", "file-" + i);
+        for (int i = 0; i < CREATE_DOCS_COUNT; i++) {
+            DocumentModel doc = session.createDocumentModel("/", "file-" + (i + 1), "File");
+            doc.setPropertyValue("dc:title", "file-" + (i + 1));
             int random = ThreadLocalRandom.current().nextInt(1, 11);
             if (random > 7 || (i == 10 && countWithValue == 0)) {
                 countWithValue += 1;
@@ -45,7 +47,6 @@ public class TestUtils {
 
         session.save();
         
-        TransactionalFeature transactionalFeature = Framework.getService(TransactionalFeature.class);
         transactionalFeature.nextTransaction();
 
     }
