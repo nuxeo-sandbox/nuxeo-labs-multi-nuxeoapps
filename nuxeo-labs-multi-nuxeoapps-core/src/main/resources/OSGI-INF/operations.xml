@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<component
+	name="org.nuxeo.labs.multi.nuxeoapps.operations">
+	<extension point="operations" target="org.nuxeo.ecm.core.operation.OperationServiceComponent">
+        <!-- Enrichment -->
+        <operation class="org.nuxeo.labs.multi.nuxeoapps.operations.SearchOp"/>
+    </extension>
+</component>

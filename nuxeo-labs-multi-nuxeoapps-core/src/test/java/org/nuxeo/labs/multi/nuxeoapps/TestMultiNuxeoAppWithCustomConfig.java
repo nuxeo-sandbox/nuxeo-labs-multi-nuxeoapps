@@ -7,6 +7,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 import java.util.stream.Stream;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+
 import javax.inject.Inject;
 
 import org.apache.commons.lang3.StringUtils;
@@ -212,8 +216,11 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         shouldHaveCustomConfigDeployed();
 
-        JSONObject resultObj = multiNuxeoAppService.call("all", null, TestUtils.KEYWORD, null, null, 0, 0);
+        JSONObject resultObj = multiNuxeoAppService.call("all", null, TestUtils.KEYWORD, "thumbnail", "dublincore,file", 0, 0);
         assertNotNull(resultObj);
+        
+        File f = new File("/Users/thibaud.arguillere/Downloads/hop.json");
+        org.apache.commons.io.FileUtils.writeStringToFile(f, resultObj.toString(2), Charset.defaultCharset(), false);
 
         JSONArray arr = resultObj.getJSONArray("results");
         

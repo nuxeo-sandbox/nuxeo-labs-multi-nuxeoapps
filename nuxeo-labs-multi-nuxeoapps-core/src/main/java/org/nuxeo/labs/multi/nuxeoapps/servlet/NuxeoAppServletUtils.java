@@ -29,6 +29,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.NuxeoException;
+import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
+import org.nuxeo.labs.multi.nuxeoapps.NuxeoAppCurrent;
 
 /**
  * Utility class to handle URLs, mainly
@@ -39,6 +41,8 @@ public class NuxeoAppServletUtils {
 
     public static List<String> BLOB_JSON_FIELDS = List.of("mime-type", "digestAlgorithm", "digest", "length", "data",
             "blobUrl");
+
+    public static String SERVLET_BLOB_URL_PROPERTY = "blobUrl";
 
     /**
      * Check if the object has the regular Blob fields
@@ -63,11 +67,11 @@ public class NuxeoAppServletUtils {
 
     /**
      * {@code oneDocObj} must be a "document" entity-type.
-     * The method gets the "properties" object of {@code oneDocObj} and updates all urls it can find in blobs, replacing
-     * them
-     * with a URL to the {@link NuxeoAppServlet}
+     * The method gets the "properties" object of {@code oneDocObj} and add a URL pointing to the
+     * {@link NuxeoAppServlet}
      * <br>
-     * If {@code isLocalNuxeo} is <code>true</code>, the method does nothing (blob can be downloaded by caller directly)
+     * If {@code isLocalNuxeo} is <code>true</code>, the method looks for for possible "http://fake-url.nuxeo.com" set
+     * by the RenderingContext, but does not set the url to the servlet
      * 
      * @param oneDocObj
      * @param appName
@@ -76,7 +80,7 @@ public class NuxeoAppServletUtils {
      */
     public static void updateBlobUrlsInProperties(JSONObject oneDocObj, String appName, boolean isLocalNuxeo) {
 
-        if (oneDocObj == null || isLocalNuxeo) {
+        if (oneDocObj == null) {
             return;
         }
 
@@ -100,9 +104,12 @@ public class NuxeoAppServletUtils {
                     if (NuxeoAppServletUtils.looksLikeABlob(obj)) {
                         String blobUrl = obj.optString("blobUrl", null);
                         if (blobUrl != null) {
-                            blobUrl = NuxeoAppServletUtils.buildMultiNxAppUrl(blobUrl, appName);
-                            obj.put("data", blobUrl);
-                            obj.put("blobUrl", blobUrl);
+                            if (isLocalNuxeo) {
+                                blobUrl = NuxeoAppCurrent.updateUrlIfNeeded(blobUrl);
+                            } else {
+                                blobUrl = NuxeoAppServletUtils.buildMultiNxAppUrl(blobUrl, appName);
+                            }
+                            obj.put(NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_BLOB_URL_KEY, blobUrl);
                         }
                     }
                     // Traverse children
@@ -130,8 +137,12 @@ public class NuxeoAppServletUtils {
             JSONObject thumbnailObj = ctxParams.optJSONObject("thumbnail", null);
             if (thumbnailObj != null) {
                 String url = thumbnailObj.getString("url");
-                url = NuxeoAppServletUtils.buildMultiNxAppUrl(url, appName);
-                thumbnailObj.put("url", url);
+                if (isLocalNuxeo) {
+                    url = NuxeoAppCurrent.updateUrlIfNeeded(url);
+                } else {
+                    url = NuxeoAppServletUtils.buildMultiNxAppUrl(url, appName);
+                }
+                thumbnailObj.put(NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_BLOB_URL_KEY, url);
             }
         }
 
@@ -180,7 +191,8 @@ public class NuxeoAppServletUtils {
      */
     public static String buildMultiNxAppUrl(String url, String appName) {
 
-        return "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName + removeUrlPrefix(url);
+        return NuxeoAppCurrent.CONTEXT_PATH + "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName
+                + removeUrlPrefix(url);
 
     }
 
@@ -198,7 +210,8 @@ public class NuxeoAppServletUtils {
      */
     public static String restoreOriginalUrl(String url, String appUrl, String appName) {
 
-        url = StringUtils.remove(url, "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName);
+        url = StringUtils.remove(url,
+                NuxeoAppCurrent.CONTEXT_PATH + "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName);
         if (!url.startsWith("/")) {
             url = "/" + url;
         }

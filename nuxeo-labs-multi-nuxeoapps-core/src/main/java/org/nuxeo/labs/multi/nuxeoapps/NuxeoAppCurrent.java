@@ -48,14 +48,16 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
 
     private static final Logger log = LogManager.getLogger(NuxeoAppCurrent.class);
 
-    public static final String CURRENT_NUXEO_DEFAULT_APPNAME = "CurrentNuxeoApp";
+    public static final String CURRENT_NUXEO_DEFAULT_APPNAME = "Current Nuxeo Server";
+
+    public static final String CONTEXT_PATH = Framework.getProperty("org.nuxeo.ecm.contextPath", "/nuxeo");
 
     protected static final NuxeoAppCurrent instance = new NuxeoAppCurrent();
 
     private NuxeoAppCurrent() {
 
         String appName = Framework.getProperty(Environment.PRODUCT_NAME);// "org.nuxeo.ecm.product.name"
-        if (StringUtils.isBlank(appName)) {
+        if (StringUtils.isBlank(appName)  || "Nuxeo Platform".equals(appName)) {
             appName = CURRENT_NUXEO_DEFAULT_APPNAME;
         }
 
@@ -78,7 +80,8 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
             int pageSize) {
 
         try {
-            PageProviderDefinition ppDef = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true, true);
+            PageProviderDefinition ppDef = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true,
+                    true);
 
             @SuppressWarnings("unchecked")
             PageProvider<DocumentModel> pp = (PageProvider<DocumentModel>) PageProviderHelper.getPageProvider(session,
@@ -104,7 +107,7 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
             }
             String[] propertiesList = { "" };
             if (StringUtils.isNotBlank(properties)) {
-                propertiesList = Arrays.stream(enrichers.split(","))
+                propertiesList = Arrays.stream(properties.split(","))
                                        .map(String::trim)
                                        .filter(s -> !s.isEmpty())
                                        .toArray(String[]::new);
@@ -120,8 +123,8 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
                 updateDocumentsEntityType(result, 200);
                 return result;
             } catch (IOException e) {
-                JSONObject result = generateErrorObject(-1, "An error occured: " + e.getMessage(),
-                        getAppName(), true, fullStackOnError ? e : (Throwable) null);
+                JSONObject result = generateErrorObject(-1, "An error occured: " + e.getMessage(), getAppName(), true,
+                        fullStackOnError ? e : (Throwable) null);
                 return result;
             }
         } catch (NuxeoException e) {
@@ -141,6 +144,28 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
     protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
         // This one should never be called for the Currentnuxeo app
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * The RenderingContext can add a "http://fake-url.nuxeo.com/" prefix to a URL, we remove it and replace with an URL a browser
+     * can fetct (if user is logged in)
+     * 
+     * @param url
+     * @return
+     * @since 2023
+     */
+    public static String updateUrlIfNeeded(String url) {
+        if (StringUtils.isNotBlank(url)) {
+            if (url.startsWith(RenderingContext.DEFAULT_URL)) {
+                url = url.replace(RenderingContext.DEFAULT_URL, "");
+                if (!url.startsWith("/")) {
+                    url = "/" + url;
+                }
+                url = NuxeoAppCurrent.CONTEXT_PATH + url;
+            }
+        }
+
+        return url;
     }
 
 }

@@ -49,7 +49,10 @@ public class NuxeoAppServlet extends HttpServlet  {
     
     private static final long serialVersionUID = 2975604269886022815L;
 
+    // WARNING: If changed, also chang in the misc. XML resources.
     public static final String MULTI_NUXEO_APPS_SERVLET_KEY = "multiNxApps";
+
+    public static final String MULTI_NUXEO_APPS_SERVLET_BLOB_URL_KEY = "nxAppsUrl";
     
     private static final Logger log = LogManager.getLogger(NuxeoAppServlet.class);
     
@@ -60,6 +63,7 @@ public class NuxeoAppServlet extends HttpServlet  {
         // So if the full url is https://myserver.com/nuxeo/multiNxApps/myApp/distant/url/with/slashes,
         // getPathInfo() returns "/myApp/distant/url/with/slashes"
         String pathInfo = req.getPathInfo();
+        
         // Security check, JIC
         FileUtils.checkPathTraversal(pathInfo);
         
@@ -81,6 +85,11 @@ public class NuxeoAppServlet extends HttpServlet  {
         NuxeoApp remoteApp = service.getNuxeoApp(appName);
         if(remoteApp == null) {
             throw new NuxeoException("Application <" + appName + "> not found.");
+        }
+        
+        String queryString = req.getQueryString();
+        if(StringUtils.isNotBlank(queryString)) {
+            remotePath += "?" + queryString;
         }
               
         // Call distant server
