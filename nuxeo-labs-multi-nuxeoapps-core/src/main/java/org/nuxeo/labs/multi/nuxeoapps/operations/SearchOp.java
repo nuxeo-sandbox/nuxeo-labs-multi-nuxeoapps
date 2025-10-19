@@ -29,13 +29,13 @@ import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 
 /**
- * @since TODO
+ * @since 2023
  */
 @Operation(id = SearchOp.ID, category = Constants.CAT_SERVICES, label = "Search in All Nuxeo Apps", description = ""
         + "See plugin documentations (or automation doc.) for details on parameters and returned JSON objet")
 public class SearchOp {
 
-    public static final String ID = "Services.MultiNuxeoAppsSearch";
+    public static final String ID = "MultiNuxeoApps.MultiNuxeoAppsSearch";
 
     @Context
     protected MultiNuxeoAppService service;
@@ -46,7 +46,7 @@ public class SearchOp {
     @Param(name = "nxql", required = false, description = "NXQL expression to run. If not passed, fullTextKeywords is required.")
     protected String nxql;
 
-    @Param(name = "fullTextKeywords", required = false, description = "Used when nxql is empty. A defauilt fulltext search is provided")
+    @Param(name = "fullTextKeywords", required = false, description = "Used when nxql is empty. A default fulltext search is provided")
     protected String fullTextKeywords;
 
     @Param(name = "enrichers", required = false, description = "Comma separated list of enrichers.")
@@ -55,10 +55,10 @@ public class SearchOp {
     @Param(name = "properties", required = false, description = "comma separated list of properties")
     protected String properties;
 
-    @Param(name = "pageIndex", required = false, description = "Page to fetch. Used is > 1")
+    @Param(name = "pageIndex", required = false, description = "Page to fetch. Used if > 1")
     protected int pageIndex = 0;
 
-    @Param(name = "pageSize", required = false, description = "Page size. Used is > 1, else a default  value applies")
+    @Param(name = "pageSize", required = false, description = "Page size. Used if > 1, else a default  value applies")
     protected int pageSize = 0;
 
     @OperationMethod
