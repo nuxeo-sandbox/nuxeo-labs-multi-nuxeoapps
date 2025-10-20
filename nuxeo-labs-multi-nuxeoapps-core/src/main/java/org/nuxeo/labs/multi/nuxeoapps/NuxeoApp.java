@@ -39,7 +39,7 @@ import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationJWT;
  */
 public class NuxeoApp extends AbstractNuxeoApp {
 
-    public static final int DEFAULT_PAGE_SIZE = 100;
+    public static final int DEFAULT_PAGE_SIZE = 50;
 
     protected NuxeoAppAuthentication nuxeoAppAuthentication = null;
 
@@ -104,9 +104,12 @@ public class NuxeoApp extends AbstractNuxeoApp {
             String encodedNxql;
             encodedNxql = URLEncoder.encode(nxql, StandardCharsets.UTF_8);
             targetUrl += "?query=" + encodedNxql;
-            if (pageIndex > 1) {
-                targetUrl += "&currentPageIndex=" + pageIndex;
+            
+            if (pageIndex < 0) {
+                pageIndex = 0;
             }
+            targetUrl += "&currentPageIndex=" + pageIndex;
+            
             if (pageSize < 1) {
                 pageSize = DEFAULT_PAGE_SIZE;
             }

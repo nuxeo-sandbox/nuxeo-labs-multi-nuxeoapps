@@ -1,0 +1,712 @@
+<!-- nuxeo-labs-multinuxeoapps-search.html
+ We can't use a nuxeo-result as it works only with a page provider.
+ So, we must reproduce the "switch between table and thumbnail view" feature, which
+ adds some complexity.
+
+ Also, can't use sort by click in the header, it also is linked to a page-provider.
+
+ => Working around that is complex, would require a lot of shadow-dom manipulation,
+    even maybe a mock-page-provider, etc... This is too complex and too hard to maintain,
+    so we display a sort dropdown instead, and we sort the whole current content, even if
+    there are maybe more results on the server side.
+-->
+<dom-module id="nuxeo-labs-multinuxeoapps-search">
+  <template>
+    <style>
+      :host {
+        display: block;
+        height: 100%;
+      }
+      a.title {
+        color: inherit;
+        text-decoration: none;
+        font-weight: inherit;
+        cursor: text;
+      }
+      a.title:hover,
+      a.title:focus,
+      a.title:active,
+      a.title:visited {
+        color: inherit;
+        text-decoration: none;
+      }
+
+
+      .ellipsis {
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        display: block;
+        width: calc(100% - 38px);
+      }
+
+      .actions {
+        margin: 0 0 1rem 0;
+      }
+
+      .view-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .view-selector paper-icon-button {
+        margin-right: 8px;
+      }
+      
+      .view-selector paper-icon-button.selected {
+        background-color: var(--nuxeo-primary-color);
+        color: white;
+      }
+
+      .results-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 350px); /* Height of buttons and all */
+        min-height: 300px;
+      }
+
+      .results-table,
+      .results-grid {
+        flex: 1;
+        height: 100%;
+      }
+
+      .sort-controls {
+        display: flex;
+        align-items: center;
+        /*gap: 8px;*/
+        margin-right: 10px;;
+        margin-bottom: 5px;
+      }
+
+      .nx-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .nx-toolbar .right-group {
+        display: flex;
+        align-items: center;
+      }
+
+      .sort-controls .order-btn {
+        min-width: 36px;
+        background: white;/*#f5f5f5;*/
+        font-size: 18px;
+        cursor: pointer;
+      }
+      .sort-controls .order-btn.asc::after { content: '↑' }
+      .sort-controls .order-btn.desc::after { content: '↓' }
+
+      .app-info-container {
+        width: 400px;
+        margin: 0 16px;
+        flex-shrink: 0;
+      }
+
+      .app-info-list {
+        max-height: 120px; /* Approx 4 items × 30px height */
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fafafa;
+      }
+
+      .app-info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+      }
+
+      .app-info-item:last-child {
+        border-bottom: none;
+      }
+
+      .app-info-item:hover {
+        background-color: #f0f0f0;
+      }
+
+      .app-pagination-info {
+        font-size: 12px;
+        color: #666;
+        display: flex;
+        gap: 12px;
+      }
+
+      .app-pagination-info span {
+        white-space: nowrap;
+      }
+
+      .heading {
+        font-size: 15px;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .andCurrentNxApp {
+        font-size: 13px;
+        font-weight: normal;
+        color: #666;
+        margin-left: 2px;
+      }
+
+      #prevPages {
+        margin-right: 15px;
+      }
+
+      #nextPages {
+        margin-left: 15px;
+      }
+    </style>
+
+    <nuxeo-operation id="searchOp" op="MultiNuxeoApps.MultiNuxeoAppsSearch"></nuxeo-operation>
+    <nuxeo-operation id="listAppsOp" op="MultiNuxeoApps.GetNuxeoAppsConfigutation" response="{{nxAppsConfig}}" auto></nuxeo-operation>
+
+    <!-- Action, Sort and View -->
+    <nuxeo-card>
+      <div class="heading">
+        Search in: [[_displayNxApps(nxAppsConfig)]]<span class="andCurrentNxApp"> (and current Nuxeo application)</span>
+      </div>
+      <div class="nx-toolbar layout horizontal wrap">
+        <div class="left-group">
+            <paper-input value="{{keywords}}"
+                         placeholder="[[i18n('defaultSearch.fullText')]]"
+                         label=""
+                         no-label-float
+                         style="width: 250px; margin-right: 12px;">
+            </paper-input>
+            <paper-button id="searchButton"noink raised on-tap="_onSearch" disabled>
+              Search Multi Nuxeo Apps
+            </paper-button>
+        </div>
+
+        <!-- Multi Nuxeo Apps Information with Navigation -->
+        <template is="dom-if" if="[[_hasAppInfo(multiNxAppInfo)]]">
+          <div style="display: flex; align-items: center;">
+            <paper-button id="prevPages" noink raised on-tap="_previousPages" disabled>Previous Pages</paper-button>
+            <div class="app-info-container">
+              <div class="app-info-list">
+                <template is="dom-repeat" items="[[multiNxAppInfo]]">
+                  <div class="app-info-item">
+                    <span>[[item.appName]]</span>
+                    <div class="app-pagination-info">
+                      <template is="dom-if" if="[[!item.hasError]]">
+                        <span>[[_computeDisplayPage(item)]]</span>
+                      </template>
+                      <template is="dom-if" if="[[item.hasError]]">
+                        <span>Error</span>
+                        <paper-icon-button 
+                          icon="warning" 
+                          style="width: 20px; height: 20px; padding: 2px; margin-left: 4oàpx; color: #666;">
+                        </paper-icon-button>
+                        <paper-tooltip position="top">[[item.responseMessage]]</paper-tooltip>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <paper-button id="nextPages" noink raised on-tap="_nextPages" disabled>Next Pages</paper-button>
+          </div>
+        </template>
+
+        <!-- Sort and display -->
+        <div class="right-group">
+          <div class="sort-controls">
+            <paper-dropdown-menu label="Sort field">
+              <paper-listbox slot="dropdown-content"
+                             selected="{{sortByField}}"
+                             attr-for-selected="value">
+                <template is="dom-repeat" items="[[sortFields]]">
+                  <paper-item value="[[item.field]]">[[item.label]]</paper-item>
+                </template>
+              </paper-listbox>
+            </paper-dropdown-menu>
+            <paper-button class$="order-btn [[sortOrder]]" on-tap="_toggleOrder" disabled$="[[!sortByField]]"></paper-button>
+          </div>
+
+          <div class="view-selector">
+            <paper-icon-button icon="view-list" 
+                              class$="[[_computeSelectedClass('table', displayMode)]]"
+                              on-tap="_switchToTable"
+                              title="Table view">
+            </paper-icon-button>
+            <paper-icon-button icon="view-module" 
+                              class$="[[_computeSelectedClass('grid', displayMode)]]"
+                              on-tap="_switchToGrid"
+                              title="Grid view">
+            </paper-icon-button>
+          </div>
+        </div>
+      </div>
+    </nuxeo-card>
+
+    <div class="results-container">
+      <!-- Table view -->
+      <template is="dom-if" if="[[_isTableMode(displayMode)]]">
+        <nuxeo-data-table items="[[documents]]" 
+                          selected-items="{{selectedItems}}"
+                          selection-enabled
+                          on-row-clicked="_openDocument"
+                          class="results-table">
+          <nuxeo-data-table-column name="[[i18n('documentContentView.datatable.header.title')]]" field="dc:title" filter-by="title" flex="100">
+            <template>
+              <nuxeo-document-thumbnail document="[[_updateDocForThumbnail(item)]]"></nuxeo-document-thumbnail>
+              <a class="title ellipsis" href$="[[item.multiNxAppInfo.docFullUrl]]" on-tap="_openDocument">[[item.title]]</a>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="Application" field="multiNxAppInfo.appName">
+            <template>
+              [[item.multiNxAppInfo.appName]]
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="[[i18n('label.type')]]" field="type">
+            <template>
+              <nuxeo-tag>[[item.type]]</nuxeo-tag>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column
+            name="[[i18n('label.dublincore.modified')]]"
+            field="dc:modified"
+            flex="50"
+          >
+            <template>
+              <nuxeo-date datetime="[[item.properties.dc:modified]]"></nuxeo-date>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column
+            name="[[i18n('label.dublincore.lastContributor')]]"
+            field="dc:lastContributor"
+            flex="50"
+          >
+            <template>
+              <nuxeo-user-tag user="[[item.properties.dc:lastContributor]]"></nuxeo-user-tag>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="[[i18n('label.state')]]" field="state">
+            <template>
+              <span class="capitalize">[[item.state]]</span>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="[[i18n('label.version')]]" field="version">
+            <template>
+              [[formatVersion(item)]]
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="[[i18n('label.dublincore.created')]]" field="dc:created" flex="50" hidden>
+            <template>
+              <nuxeo-date datetime="[[item.properties.dc:created]]"></nuxeo-date>
+            </template>
+          </nuxeo-data-table-column>
+
+          <nuxeo-data-table-column name="[[i18n('label.dublincore.author')]]" field="dc:creator" hidden>
+            <template>
+              <nuxeo-user-tag user="[[item.properties.dc:creator]]"></nuxeo-user-tag>
+            </template>
+          </nuxeo-data-table-column>
+          
+        </nuxeo-data-table>
+      </template>
+
+      <!-- Grid view -->
+      <template is="dom-if" if="[[_isGridMode(displayMode)]]">
+        <nuxeo-data-grid items="[[documents]]" 
+                         selected-items="{{selectedItems}}"
+                         selection-enabled
+                         class="results-grid">
+          <template>
+            <nuxeo-document-grid-thumbnail class="grid-box"
+                                          tabindex$="[[tabIndex]]"
+                                          selected$="[[selected]]"
+                                          index="[[index]]"
+                                          on-navigate="_openDocument"
+                                          doc="[[_updateDocForThumbnail(item)]]">
+            </nuxeo-document-grid-thumbnail>
+          </template>
+        </nuxeo-data-grid>
+      </template>
+    </div>
+  </template>
+
+  <script>
+    (function() {
+      'use strict';
+
+      Polymer({
+        is: 'nuxeo-labs-multinuxeoapps-search',
+        behaviors: [Nuxeo.LayoutBehavior, Nuxeo.FiltersBehavior],
+
+        properties: {
+          documents: {
+            type: Array,
+            value: []
+          },
+        
+          selectedItems: {
+            type: Array,
+            notify: true,
+            value: []
+          },
+          
+          displayMode: {
+            type: String,
+            value: 'table'
+          },
+
+          keywords: {
+            type: String,
+            value: '',
+            observer: "_keywordsChanged"
+          },
+
+          nxAppsConfig: {
+            type: Object,
+            value: null
+          },
+
+          sortByField: {
+            type: String,
+            value: null,
+            observer: "_onSortFieldChanged"
+          },
+
+          sortOrder: {
+            type: String,
+            value: 'asc'
+          },
+
+          sortFields: {
+            type: Array,
+            value: []
+          },
+
+          multiNxAppInfo: {
+            type: Array,
+            value: [],
+            observer: "_multiNxAppInfoChanged"
+          },
+
+          currentPageIndex: {
+            type: Number,
+            value: 0
+          },
+
+          maxPages: {
+            type: Number,
+            value: 0
+          }
+        },
+
+        _keywordsChanged: function(newValue, oldValue) {
+          let disabled;
+          if(newValue) {
+            disabled = false;
+          } else {
+            disabled = true;
+          }
+          if(disabled !== this.$.searchButton.disabled) {
+            this.$.searchButton.disabled = disabled;
+          }
+        },
+
+        _displayNxApps: function(nxAppsConfig) {
+          if (!nxAppsConfig || !Array.isArray(nxAppsConfig)) {
+            return '';
+          }
+          let apps = nxAppsConfig.map(app => app.appName).join(', ');
+
+          return apps;
+        },
+
+        _multiNxAppInfoChanged: function(newValue, oldValue) {
+          if(!this._hasAppInfo(newValue)) {
+            return;
+          }
+
+          // Use async to ensure the DOM elements exist after the conditional template renders
+          this.async(() => {
+            // Also, can't access this.$.{someId} in the context of a conditional template,
+            // need to use this.$$('#{someId}')
+            const prevButton = this.$$('#prevPages');
+            const nextButton = this.$$('#nextPages');
+            
+            if (!prevButton || !nextButton) {
+              // That is very unfortunate.
+              return;
+            }
+
+            let hasPrevious = false;
+            let hasNext = false;
+
+            newValue.forEach((appInfo) => {
+              if (appInfo.hasPreviousPage) {
+                hasPrevious = true;
+              }
+              if (appInfo.hasNextPage) {
+                hasNext = true;
+              }
+            });
+
+            prevButton.disabled = !hasPrevious;
+            nextButton.disabled = !hasNext;
+          }, 1);
+        },
+
+        ready: function() {
+          //Compute fields, but wait for the data table to be ready
+          this.async(() => {
+            const dataTable = this.$$('nuxeo-data-table');
+            if (!dataTable) {
+              return;
+            }
+            
+            const columns = dataTable.querySelectorAll('nuxeo-data-table-column');
+            let sortFields = [];
+            columns.forEach((column, index) => {
+              const name = column.name;
+              const field = column.field;
+              sortFields.push({ label: name, field: field });
+            });
+            
+            this.sortFields = sortFields;
+
+          }, 100);
+        },
+
+        _hasAppInfo: function(multiNxAppInfo) {
+          return multiNxAppInfo && multiNxAppInfo.length > 0;
+        },
+
+        _computeDisplayPage: function(item) {
+          if(!item) {
+            return '';
+          }
+          
+          if(item.hasResults) {
+            let pageIndex = item.currentPageIndex + 1;
+            return 'Page ' + pageIndex + ' of ' + item.numberOfPages;
+          }
+
+          if(this.currentPageIndex > 0) {
+            return 'No more results';
+          }
+
+          return 'No results';
+        },
+
+        _openDocument: function(evt) {
+          const doc = evt.detail.doc || evt.detail.item;
+          if (doc && doc.multiNxAppInfo && doc.multiNxAppInfo.docFullUrl) {
+            const url = doc.multiNxAppInfo.docFullUrl;
+            const newWin = window.open(url, '_blank');
+            if (newWin) {
+              // Prevent reverse tabnabbing
+              newWin.opener = null;
+            }
+          }
+        },
+
+        _updateDocForThumbnail: function(doc) {
+          if(!doc || !doc.contextParameters || !doc.contextParameters.thumbnail || !doc.contextParameters.thumbnail.url) {
+            return doc;
+          }
+
+          doc.contextParameters.thumbnail.originalUrl = doc.contextParameters.thumbnail.url;
+          doc.contextParameters.thumbnail.url = doc.contextParameters.thumbnail.nxAppsUrl;
+          return doc;
+        },
+
+        _previousPages: function() {
+          if(this.currentPageIndex <= 0) {
+            return;
+          }
+          this.currentPageIndex -= 1;
+          this._onSearch();
+        },
+        _nextPages: function() {
+          if(this.currentPageIndex >= this.maxPages - 1) {
+            return;
+          }
+          this.currentPageIndex += 1;
+          this._onSearch();
+        },
+        
+        _onSearch: function() {
+          const op = this.$.searchOp;
+
+          //let nxql = "SELECT * FROM Document WHERE ecm:primaryType IN ('File', 'Picture', 'Asset') AND ecm:isVersion = 0 AND ecm:isTrashed = 0 AND ecm:isProxy = 0";
+          //let nxql = "SELECT * FROM File, Picture WHERE ecm:isVersion = 0 AND ecm:isTrashed = 0 AND ecm:isProxy = 0";
+          op.params = {
+            "nuxeoApps": "all",
+            //"nxql": nxql,
+            "fullTextKeywords": this.keywords,
+            "enrichers": "thumbnail",
+            "properties": "dublincore,file,common,uid",
+            "pageIndex": this.currentPageIndex,
+            //"pageSize": 100 
+          };
+
+          op.execute()
+            .then((res) => {
+              // { multiNxApps_CallParameters: {...}, results: [ multiNxAppInfo: {...}, { entries: [...] }, ... ] }
+              const results = (res && res.results) || [];
+              let allEntries = results.flatMap(obj => obj.entries);
+              this.documents = allEntries;
+              this._fillNxAppInfo(results);
+              if (this.sortByField) {
+                this._sortDocuments();
+              }
+            })
+            .catch((err) => {
+              alert("Failed to run multi Nuxeo applications search: " + err);
+              console.error('MultiNuxeoAppsSearch operation failed', err);
+              this.documents = [];
+            });
+        },
+
+        _fillNxAppInfo: function(searchResults) {// pagheIndex > pageCount
+          let maxPages = 0;
+          for(let i = 0; i < searchResults.length; i++) {
+            if(searchResults[i].numberOfPages > maxPages) {
+              maxPages = searchResults[i].numberOfPages;
+            }
+          }
+          this.maxPages = maxPages;
+
+          this.multiNxAppInfo = searchResults.map((oneResult) => {
+            maxPages += oneResult.numberOfPages || 0;
+            return {
+              hasError: oneResult.multiNxAppInfo.hasError ? true : false,
+              hasResults: oneResult.currentPageSize > 0 && oneResult.entries.length > 0 && oneResult.pageCount > this.currentPageIndex,
+              appName: oneResult.multiNxAppInfo.appName,
+              hasNextPage: oneResult.isNextPageAvailable,
+              hasPreviousPage: oneResult.isPreviousPageAvailable,
+              currentPageIndex: oneResult.currentPageIndex,
+              numberOfPages: oneResult.numberOfPages,
+              responseMessage: oneResult.multiNxAppInfo.responseMessage
+            };
+          });
+        },
+
+        _switchToTable: function() {
+          this.displayMode = 'table';
+        },
+
+        _switchToGrid: function() {
+          this.displayMode = 'grid';
+        },
+
+        _isTableMode: function(mode) {
+          return mode === 'table';
+        },
+
+        _isGridMode: function(mode) {
+          return mode === 'grid';
+        },
+
+        _computeSelectedClass: function(viewMode, currentMode) {
+          return viewMode === currentMode ? 'selected' : '';
+        },
+
+        refreshData: function() {
+          this.$.fetchDataOp.execute();
+        },
+
+        _onSortFieldChanged: function(newValue, oldValue) {
+          if(!newValue) {
+            return;
+          }
+
+          // Reset order when field changes
+          this.sortOrder = 'asc';
+          this._sortDocuments();
+        },
+
+        _toggleOrder: function() {
+          if (!this.sortByField) {
+            return;
+          }
+          this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+          this._sortDocuments();
+        },
+
+        _sortDocuments: function() {
+          if (!this.sortByField) {
+            return;
+          }
+          const orderFactor = this.sortOrder === 'asc' ? 1 : -1;
+          const field = this.sortByField;
+          const docs = this.documents.slice();
+          
+          const getter = (doc) => {
+
+            if(field.indexOf(":") > -1) {
+              return doc.properties[field];// Dates are sorted alphabetically, as they are ISO
+            }
+
+            // Special cases
+            switch(field) {
+              case 'state':
+                return doc.state || '';
+              case 'version':
+                if(doc.versionLabel) {
+                  return doc.versionLabel;
+                }
+                return doc.properties['uid:major_version'] + '.' + doc.properties['uid:minor_version'];
+            }
+          };
+          
+          docs.sort((a, b) => {
+            const va = getter(a);
+            const vb = getter(b);
+            
+            // Handle different data types
+            if (typeof va === 'number' && typeof vb === 'number') {
+              return (va - vb) * orderFactor;
+            }
+            
+            // String comparison
+            const aStr = String(va).toLowerCase();
+            const bStr = String(vb).toLowerCase();
+            
+            if (aStr < bStr) {
+              return -1 * orderFactor;
+            }
+            if (aStr > bStr) {
+              return 1 * orderFactor;
+            }
+            
+            // If equals, then return by app name
+            const appA = a.multiNxAppInfo.appName;
+            const appB = b.multiNxAppInfo.appName;
+            if (appA < appB) {
+              return -1 * orderFactor;
+            }
+            if (appA > appB) {
+              return 1 * orderFactor;
+            }
+
+            return 0;
+          });
+          this.documents = docs;
+        }
+      });
+    })();
+  </script>
+</dom-module>

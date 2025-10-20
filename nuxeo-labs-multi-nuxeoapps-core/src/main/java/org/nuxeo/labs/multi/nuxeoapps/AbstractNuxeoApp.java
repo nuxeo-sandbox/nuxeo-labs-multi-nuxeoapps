@@ -118,6 +118,7 @@ public abstract class AbstractNuxeoApp {
 
             // Add NuxeoApp info
             JSONObject info = createMultiNxAppInfo(null, appUrl + "/ui/#!/doc/" + oneDoc.getString("uid"), null);
+            info.put("isLocal", isLocalNuxeo);
             oneDoc.put(MULTI_NUXEO_APPS_PROPERTY_NAME, info);
 
         }

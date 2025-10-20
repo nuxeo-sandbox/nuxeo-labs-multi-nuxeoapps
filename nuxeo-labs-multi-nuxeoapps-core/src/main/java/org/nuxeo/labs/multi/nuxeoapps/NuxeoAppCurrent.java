@@ -82,6 +82,13 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
         try {
             PageProviderDefinition ppDef = PageProviderHelper.getQueryPageProviderDefinition(finalNxql, null, true,
                     true);
+            
+            if (pageIndex < 0) {
+                pageIndex = 0;
+            }
+            if (pageSize < 1) {
+                pageSize = NuxeoApp.DEFAULT_PAGE_SIZE;
+            }
 
             @SuppressWarnings("unchecked")
             PageProvider<DocumentModel> pp = (PageProvider<DocumentModel>) PageProviderHelper.getPageProvider(session,
