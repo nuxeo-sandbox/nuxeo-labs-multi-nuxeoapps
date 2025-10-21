@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.nuxeo.common.Environment;
 import org.nuxeo.ecm.automation.core.util.PageProviderHelper;
-import org.nuxeo.ecm.automation.jaxrs.io.documents.PaginableDocumentModelListImpl;
+import org.nuxeo.ecm.automation.io.rest.documents.PaginableDocumentModelListImpl;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.DocumentModelList;

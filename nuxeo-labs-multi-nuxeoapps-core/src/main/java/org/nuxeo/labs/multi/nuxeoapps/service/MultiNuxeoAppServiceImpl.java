@@ -111,9 +111,7 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
                     try {
                         return app.call(currentUser, nxql, enrichers, properties, pageIndex, pageSize);
                     } catch (Exception e) {
-                        JSONObject err = new JSONObject();
-                        err.put("app", app.getAppName());
-                        err.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
+                        JSONObject err = AbstractNuxeoApp.generateErrorObject(-1, e.getMessage(), app.getAppName(), true, e);
                         return err;
                     }
                 }, pool));

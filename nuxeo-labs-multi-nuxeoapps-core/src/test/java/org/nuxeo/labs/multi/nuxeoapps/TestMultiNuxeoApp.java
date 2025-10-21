@@ -3,7 +3,7 @@ package org.nuxeo.labs.multi.nuxeoapps;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import org.json.JSONArray;
 import org.junit.Test;

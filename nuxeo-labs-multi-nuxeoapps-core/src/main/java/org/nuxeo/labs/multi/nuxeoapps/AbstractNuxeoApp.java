@@ -177,8 +177,44 @@ public abstract class AbstractNuxeoApp {
         return result;
     }
 
+    /**
+     * 
+     * @return
+     * @since TODO
+     */
     // Implemented only in sub-classes, but used in getBlob()
     protected abstract NuxeoAppAuthentication getNuxeoAppAuthentication();
+    
+    /**
+     * Check availability, trargeting the runningstatus endpoint (that does not require authentication)
+     * 
+     * @return
+     * @since TODO
+     */
+    public boolean isServerAvailable() {
+        try {
+            
+            HttpClient client = HttpClient.newBuilder()
+                                           .connectTimeout(Duration.ofSeconds(5))
+                                           .build();
+
+            String healthStatusUrl = appUrl + "/runningstatus";
+            HttpRequest request = HttpRequest.newBuilder(URI.create(healthStatusUrl))
+                                                .timeout(Duration.ofSeconds(10))
+                                                .GET()
+                                                .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // With no error we consider the server is available
+            // runningstatus can return 500, with on status failing but it's ok if not used (and we don't know if it is)
+            return true;
+
+        } catch (IOException | InterruptedException e) {
+            // Connection refused, timeout, or other error
+            return false;
+        }
+    }
 
     /**
      * Return the remote blob. {@code relativePath} is relative to the distant server (like "/nxfile/etc/etc")
