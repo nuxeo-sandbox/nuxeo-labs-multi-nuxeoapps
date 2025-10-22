@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- For the unit test, we use environement variables
+     They are resoved in NuxeoAppDescriptor#expandEnvironmentVariables -->
+<component
+	name="org.nuxeo.labs.multi.nuxeoapps.test.MultiNuxeoApps.basic">
+
+	<extension
+		target="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService"
+		point="nuxeoapp">
+		<nuxeoapp>
+			<appName>TEST_App1_BASIC</appName>
+			<appUrl>${TEST_MULTIAPPS_APP1_BASIC_URL}</appUrl>
+			<basicUser>${TEST_MULTIAPPS_APP1_BASIC_USERNAME}</basicUser>
+			<basicPwd>${TEST_MULTIAPPS_APP1_BASIC_PASSWORD}</basicPwd>
+		</nuxeoapp>
+		
+		<nuxeoapp>
+			<appName>TEST_App2_BASIC</appName>
+			<appUrl>${TEST_MULTIAPPS_APP2_BASIC_URL}</appUrl>
+			<basicUser>${TEST_MULTIAPPS_APP2_BASIC_USERNAME}</basicUser>
+			<basicPwd>${TEST_MULTIAPPS_APP2_BASIC_PASSWORD}</basicPwd>
+		</nuxeoapp>
+	</extension>
+
+</component>

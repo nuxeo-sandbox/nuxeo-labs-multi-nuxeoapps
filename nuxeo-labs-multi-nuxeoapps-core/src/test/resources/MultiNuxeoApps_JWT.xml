@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- For the unit test, we use environement variables
+     They are resoved in NuxeoAppDescriptor#expandEnvironmentVariables -->
+<component
+	name="org.nuxeo.labs.multi.nuxeoapps.test.MultiNuxeoApps.jwt">
+
+	<extension
+		target="org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService"
+		point="nuxeoapp">
+		<nuxeoapp>
+			<appName>TEST_App1_JWT</appName>
+			<appUrl>${TEST_MULTIAPPS_APP1_JWT_URL}</appUrl>
+			<tokenUser>${TEST_MULTIAPPS_APP1_JWT_TOKEN_USER}</tokenUser>
+			<tokenClientId>${TEST_MULTIAPPS_APP1_JWT_CLIENT_ID}</tokenClientId>
+			<tokenClientSecret>${TEST_MULTIAPPS_APP1_JWT_CLIENT_SECRET}</tokenClientSecret>
+			<jwtSecret>${TEST_MULTIAPPS_APP1_TOKEN_JWT_SECRET}</jwtSecret>
+		</nuxeoapp>
+		
+		<nuxeoapp>
+			<appName>TEST_App2_JWT</appName>
+			<appUrl>${TEST_MULTIAPPS_APP2_JWT_URL}</appUrl>
+			<tokenUser>${TEST_MULTIAPPS_APP2_JWT_TOKEN_USER}</tokenUser>
+			<tokenClientId>${TEST_MULTIAPPS_APP2_JWT_CLIENT_ID}</tokenClientId>
+			<tokenClientSecret>${TEST_MULTIAPPS_APP2_JWT_CLIENT_SECRET}</tokenClientSecret>
+			<jwtSecret>${TEST_MULTIAPPS_APP2_TOKEN_JWT_SECRET}</jwtSecret>
+		</nuxeoapp>
+	</extension>
+
+</component>
