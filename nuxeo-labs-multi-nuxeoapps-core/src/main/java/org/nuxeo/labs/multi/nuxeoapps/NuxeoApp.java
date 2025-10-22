@@ -44,13 +44,13 @@ public class NuxeoApp extends AbstractNuxeoApp {
     protected NuxeoAppAuthentication nuxeoAppAuthentication = null;
 
     @Override
-    protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
+    public NuxeoAppAuthentication getNuxeoAppAuthentication() {
         return nuxeoAppAuthentication;
     }
 
     public NuxeoApp(String appName, String appUrl, String basicUser, String basicPwd) {
 
-        super.initialize(appName, appUrl, false);
+        super.initialize(appName, appUrl, false, AuthenticationType.BASIC);
 
         nuxeoAppAuthentication = new NuxeoAppAuthenticationBASIC(basicUser, basicPwd);
 
@@ -59,7 +59,7 @@ public class NuxeoApp extends AbstractNuxeoApp {
     public NuxeoApp(String appName, String appUrl, String tokenUser, String tokenClientId, String tokenClientSecret,
             String jwtSecret) {
 
-        super.initialize(appName, appUrl, false);
+        super.initialize(appName, appUrl, false, AuthenticationType.JWT);
 
         nuxeoAppAuthentication = new NuxeoAppAuthenticationJWT(appUrl, tokenUser, tokenClientId, tokenClientSecret,
                 jwtSecret);

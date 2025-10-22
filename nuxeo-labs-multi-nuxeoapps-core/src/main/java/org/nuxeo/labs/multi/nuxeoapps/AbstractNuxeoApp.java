@@ -34,6 +34,7 @@ import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
+import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServlet;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 
 /**
@@ -44,12 +45,18 @@ import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 public abstract class AbstractNuxeoApp {
 
     public static final String MULTI_NUXEO_APPS_PROPERTY_NAME = "multiNxAppInfo";
+    
+    public enum AuthenticationType {
+        NOT_NEEDED, BASIC, JWT
+    }
 
-    String appName;
+    protected String appName;
 
-    String appUrl;
+    protected String appUrl;
+    
+    protected AuthenticationType authenticationType;
 
-    boolean isLocalNuxeo;
+    protected boolean isLocalNuxeo;
 
     protected boolean fullStackOnError = false;
 
@@ -61,11 +68,12 @@ public abstract class AbstractNuxeoApp {
      * @param isLocalNuxeo
      * @since 2023
      */
-    public void initialize(String appName, String appUrl, boolean isLocalNuxeo) {
+    public void initialize(String appName, String appUrl, boolean isLocalNuxeo, AuthenticationType authenticationType) {
 
         this.appName = appName;
         this.appUrl = appUrl;
         this.isLocalNuxeo = isLocalNuxeo;
+        this.authenticationType = authenticationType;
     }
 
     /**
@@ -82,6 +90,10 @@ public abstract class AbstractNuxeoApp {
      */
     public String getAppUrl() {
         return appUrl;
+    }
+    
+    public AuthenticationType getAuthenticationType() {
+        return authenticationType;
     }
 
     /**
@@ -183,7 +195,7 @@ public abstract class AbstractNuxeoApp {
      * @since TODO
      */
     // Implemented only in sub-classes, but used in getBlob()
-    protected abstract NuxeoAppAuthentication getNuxeoAppAuthentication();
+    public abstract NuxeoAppAuthentication getNuxeoAppAuthentication();
     
     /**
      * Check availability, trargeting the runningstatus endpoint (that does not require authentication)
@@ -204,6 +216,7 @@ public abstract class AbstractNuxeoApp {
                                                 .GET()
                                                 .build();
 
+            @SuppressWarnings("unused")
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             // With no error we consider the server is available
