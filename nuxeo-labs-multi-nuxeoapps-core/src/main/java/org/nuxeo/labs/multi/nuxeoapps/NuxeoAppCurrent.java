@@ -68,7 +68,7 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
 
         log.warn("NuxeoAppCurrent, appName=<" + appName + ">, appUrl=<" + appUrl + ">");
 
-        initialize(appName, appUrl, true);
+        initialize(appName, appUrl, true, AuthenticationType.NOT_NEEDED);
 
     }
 
@@ -148,7 +148,7 @@ public class NuxeoAppCurrent extends AbstractNuxeoApp {
     }
 
     @Override
-    protected NuxeoAppAuthentication getNuxeoAppAuthentication() {
+    public NuxeoAppAuthentication getNuxeoAppAuthentication() {
         // This one should never be called for the Currentnuxeo app
         throw new UnsupportedOperationException();
     }

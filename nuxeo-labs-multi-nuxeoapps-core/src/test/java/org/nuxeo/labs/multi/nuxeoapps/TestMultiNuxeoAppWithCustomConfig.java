@@ -20,6 +20,9 @@ import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.impl.blob.JSONBlob;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.labs.multi.nuxeoapps.AbstractNuxeoApp.AuthenticationType;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthentication;
+import org.nuxeo.labs.multi.nuxeoapps.authentication.NuxeoAppAuthenticationJWT;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppServiceImpl;
 import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
@@ -35,9 +38,11 @@ import jakarta.inject.Inject;
 @Deploy("nuxeo-labs-multi-nuxeoapps-core")
 
 /*
- * The MultiNuxeoApps.xml test contrib is deployed in some tests.
- * It contributes different NuxeoApp and assumes env. variables are set for
- * the misc. values (URL, passwords, etc. If not set, the test is ignored.
+ * The MultiNuxeoApps.xml test contrib contributes different NuxeoApp and
+ * assumes env. variables are set for the misc. values (URL, passwords, etc.
+ * If not set, the test is ignored.
+ * Also, as we test remote app, if it's not available it's not considered as
+ * a test failure.
  */
 @Deploy("nuxeo-labs-multi-nuxeoapps-core:MultiNuxeoApps.xml")
 public class TestMultiNuxeoAppWithCustomConfig {
@@ -52,7 +57,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
     @Inject
     protected TransactionalFeature transactionalFeature;
-    
+
     @Before
     public void setupTest() {
         TestUtils.createDocs(session, transactionalFeature);
@@ -94,23 +99,17 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         return true;
     }
-    
+
     protected boolean atLeastOneAppAvailable(String... appNames) {
-        
-        int availabilityCount = 0;
-        
-        if(appNames.length == 1 && "all".equals(appNames[0])) {
-            
-        }
-        
+
         for (String oneName : appNames) {
             NuxeoApp app = multiNuxeoAppService.getNuxeoApp(oneName);
-            if(app.isServerAvailable()) {
-                availabilityCount += 1;
+            if (app.isServerAvailable()) {
+                return true;
             }
         }
-        return availabilityCount > 0;
-        
+        return false;
+
     }
 
     protected JSONObject getResultsForApp(JSONArray arr, String appName) {
@@ -141,25 +140,26 @@ public class TestMultiNuxeoAppWithCustomConfig {
         }
 
     }
-    
+
     @Test
     public void shouldHaveParamsInfo() {
-        
+
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String nxql = "SELECT * FROM Domain";
         String fulltextValues = null;
         String enrichers = null;
         String properties = "uuid, common";
         int pageIndex = -1;
         int pageSize = 40;
-        
+
         // Just test "TEST_AppBASIC1"
-        JSONObject resultObj = multiNuxeoAppService.call("TEST_AppBASIC1", nxql, fulltextValues, enrichers, properties, pageIndex, pageSize);
+        JSONObject resultObj = multiNuxeoAppService.call("TEST_AppBASIC1", nxql, fulltextValues, enrichers, properties,
+                pageIndex, pageSize);
         assertTrue(resultObj.has(MultiNuxeoAppServiceImpl.CALL_PARAMETERS_PROPERTY));
-        
+
         JSONObject props = resultObj.getJSONObject(MultiNuxeoAppServiceImpl.CALL_PARAMETERS_PROPERTY);
         assertEquals(nxql, props.getString("nxql"));
         assertEquals(MultiNuxeoAppServiceImpl.NULL_VALUE_FOR_JSON, props.getString("fulltextSearchValues"));
@@ -176,16 +176,17 @@ public class TestMultiNuxeoAppWithCustomConfig {
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String APP_TO_TEST = "TEST_AppBASIC1";
-        
+
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
 
         // (TEST_AppBASIC1 defined in the xml contrib)
         JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, null, TestUtils.KEYWORD, null, null, 0, 0);
-        //JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, "SELECT * FROM Picture", TestUtils.KEYWORD, null, "file,thumbnail,picture", 0);
+        // JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, "SELECT * FROM Picture", TestUtils.KEYWORD,
+        // null, "file,thumbnail,picture", 0);
         assertNotNull(resultObj);
-        
+
         JSONArray arr = resultObj.getJSONArray("results");
         assertTrue(arr.length() == 2); // Only one repo searched, + local
 
@@ -200,33 +201,35 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         assertEquals("documents", result.getString("entity-type"));
     }
-    
+
     @Test
     public void shouldSearchOnlyCurrent() {
 
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
-        JSONObject resultObj = multiNuxeoAppService.call("not a valid app", "SELECT * FROM File", null, null, null, 0, 0);
-        //JSONObject resultObj = multiNuxeoAppService.call("TEST_AppBASIC2", "SELECT * FROM Picture", TestUtils.KEYWORD, null, "file,thumbnail,picture", 0);
+
+        JSONObject resultObj = multiNuxeoAppService.call("not a valid app", "SELECT * FROM File", null, null, null, 0,
+                0);
+        // JSONObject resultObj = multiNuxeoAppService.call("TEST_AppBASIC2", "SELECT * FROM Picture",
+        // TestUtils.KEYWORD, null, "file,thumbnail,picture", 0);
         assertNotNull(resultObj);
-        
+
         JSONArray arr = resultObj.getJSONArray("results");
         assertTrue(arr.length() == 2);
-        
+
         // First one is the remote apps info
         JSONObject result = arr.getJSONObject(0);
         JSONObject info = result.getJSONObject(AbstractNuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
         assertTrue(info.getBoolean("hasError"));
-        
+
         // Then local one
         result = arr.getJSONObject(1);
         info = result.getJSONObject(AbstractNuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
         assertEquals(NuxeoAppCurrent.CURRENT_NUXEO_DEFAULT_APPNAME, info.getString("appName"));
         int resultCount = result.getInt("resultsCount");
         assertEquals(TestUtils.CREATE_DOCS_COUNT, resultCount);
-        
+
     }
 
     @Test
@@ -235,18 +238,19 @@ public class TestMultiNuxeoAppWithCustomConfig {
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String[] allNames = APP_NAMES.toArray(String[]::new);
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(allNames));
 
-        JSONObject resultObj = multiNuxeoAppService.call("all", null, TestUtils.KEYWORD, "thumbnail", "dublincore,file", 0, 0);
+        JSONObject resultObj = multiNuxeoAppService.call("all", null, TestUtils.KEYWORD, "thumbnail", "dublincore,file",
+                0, 0);
         assertNotNull(resultObj);
-        
+
         File f = new File("/Users/thibaud.arguillere/Downloads/hop.json");
         org.apache.commons.io.FileUtils.writeStringToFile(f, resultObj.toString(2), Charset.defaultCharset(), false);
 
         JSONArray arr = resultObj.getJSONArray("results");
-        
+
         String currentAppNamme = NuxeoAppCurrent.getInstance().getAppName();
         String[] array = Stream.concat(APP_NAMES.stream(), Stream.of(currentAppNamme)).toArray(String[]::new);
         assertTrue(hasApps(arr, array));
@@ -260,12 +264,13 @@ public class TestMultiNuxeoAppWithCustomConfig {
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String[] allNames = APP_NAMES.toArray(String[]::new);
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(allNames));
 
         int PAGE_SIZE = 1;
-        JSONObject resultObj = multiNuxeoAppService.call("all", "SELECT * FROM File", /*TestUtils.KEYWORD*/ null, null, null, 0, PAGE_SIZE);
+        JSONObject resultObj = multiNuxeoAppService.call("all", "SELECT * FROM File", /* TestUtils.KEYWORD */ null,
+                null, null, 0, PAGE_SIZE);
         assertNotNull(resultObj);
 
         JSONArray arr = resultObj.getJSONArray("results");
@@ -274,49 +279,49 @@ public class TestMultiNuxeoAppWithCustomConfig {
         String[] array = Stream.concat(APP_NAMES.stream(), Stream.of(currentAppNamme)).toArray(String[]::new);
         assertTrue(hasApps(arr, array));
         assertTrue(arr.length() == APP_NAMES.size() + 1); // + local
-        
+
         // Check result entries is max PAGE_SIZE
-        for(int i = 0; i < arr.length(); i++) {
+        for (int i = 0; i < arr.length(); i++) {
             JSONObject oneResult = arr.getJSONObject(i);
             JSONObject info = oneResult.getJSONObject(AbstractNuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
-            if(!info.optBoolean("hasError", false)) {
+            if (!info.optBoolean("hasError", false)) {
                 JSONArray entries = oneResult.getJSONArray("entries");
                 assertTrue(entries.length() <= PAGE_SIZE);
             }
         }
     }
-    
+
     @Test
     public void shouldHaveError() throws Exception {
 
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String[] allNames = APP_NAMES.toArray(String[]::new);
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(allNames));
-        
+
         // Wrong NXQL
         JSONObject resultObj = multiNuxeoAppService.call("all", "SELECT ***** FROM File", null, null, null, 0, 0);
         assertNotNull(resultObj);
 
         JSONArray arr = resultObj.getJSONArray("results");
-        
-        for(int i = 0; i < arr.length(); i++) {
+
+        for (int i = 0; i < arr.length(); i++) {
             JSONObject oneResult = arr.getJSONObject(i);
-            
+
             JSONObject info = oneResult.getJSONObject(AbstractNuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
             assertTrue(info.has("hasError"));
             assertTrue(info.getBoolean("hasError"));
         }
-        
+
         // With full stack
         multiNuxeoAppService.tuneNuxeoApps(true);
         resultObj = multiNuxeoAppService.call("all", "SELECT ***** FROM File", null, null, null, 0, 0);
         assertNotNull(resultObj);
 
         arr = resultObj.getJSONArray("results");
-        
+
     }
 
     @Test
@@ -325,9 +330,8 @@ public class TestMultiNuxeoAppWithCustomConfig {
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String APP_TO_TEST = "TEST_AppJWT";
-        
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
 
         JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, null, TestUtils.KEYWORD, null, null, 0, 0);
@@ -337,7 +341,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
         assertTrue(arr.length() == 2); // Only one repo searched, + local
 
         assertTrue(hasApps(arr, APP_TO_TEST, NuxeoAppCurrent.getInstance().getAppName()));
-        
+
         // Not testing tst server results, it likely failed because of "no fulltext index"
         JSONObject result = getResultsForApp(arr, APP_TO_TEST);
         assertNotNull(result);
@@ -350,26 +354,51 @@ public class TestMultiNuxeoAppWithCustomConfig {
     }
     
     @Test
+    public void shouldResuseJWTToken() throws Exception {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigDeployed();
+
+        String APP_TO_TEST = "TEST_AppJWT";
+        Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
+
+        JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, null, TestUtils.KEYWORD, null, null, 0, 0);
+        assertNotNull(resultObj);
+        
+        NuxeoApp nxApp = multiNuxeoAppService.getNuxeoApp(APP_TO_TEST);
+        assertEquals(nxApp.getauthenticationType(), AuthenticationType.JWT);
+        NuxeoAppAuthenticationJWT nxApAuth = (NuxeoAppAuthenticationJWT) nxApp.getNuxeoAppAuthentication();
+        String token = nxApAuth.getToken(null);
+        assertNotNull(token);
+        
+        Thread.sleep(5000);
+        token = nxApAuth.getToken(null);
+        assertNotNull(token);
+        
+    }
+
+    @Test
     public void shouldGetRemoteBlob() throws Exception {
 
         Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
 
         shouldHaveCustomConfigDeployed();
-        
+
         String APP_TO_TEST = "TEST_AppBASIC2";
-        
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
-        
+
         /*
-        NuxeoApp app = multiNuxeoAppService.getNuxeoApp("TEST_AppBASIC1");
-        assertNotNull(app);
-        Blob b = app.getBlob("/nxfile/default/d14837dc-bfcd-41bb-8886-ae1b8bfbc17c/file:content/NYCHighLine.jpg?changeToken=3-0");
-        */
+         * NuxeoApp app = multiNuxeoAppService.getNuxeoApp("TEST_AppBASIC1");
+         * assertNotNull(app);
+         * Blob b = app.getBlob(
+         * "/nxfile/default/d14837dc-bfcd-41bb-8886-ae1b8bfbc17c/file:content/NYCHighLine.jpg?changeToken=3-0");
+         */
         // Test should have redirect. In our settngs, TEST_AppBASIC2 is an app on AWS with direct download
         // Cmment this if it's not your case
         NuxeoApp app = multiNuxeoAppService.getNuxeoApp(APP_TO_TEST);
         assertNotNull(app);
-        
+
         // Get redirect info
         String BLOB_URL = System.getenv("TEST_MULTIAPPS_REMOTE_BLOB_URL");
         String BLOB_FILENAME = System.getenv("TEST_MULTIAPPS_REMOTE_BLOB_FILENAME");
@@ -381,14 +410,14 @@ public class TestMultiNuxeoAppWithCustomConfig {
         assertTrue(redirectInfoJson.has("location"));
         int status = redirectInfoJson.getInt("status");
         assertTrue(NuxeoAppServletUtils.isRedirect(status));
-        
+
         String location = redirectInfoJson.getString("location");
         assertTrue(StringUtils.isNotBlank(location));
-        
+
         // Get the file
         b = app.getBlob(BLOB_URL, false);
         assertEquals(BLOB_FILENAME, b.getFilename());
-        
+
     }
 
 }
