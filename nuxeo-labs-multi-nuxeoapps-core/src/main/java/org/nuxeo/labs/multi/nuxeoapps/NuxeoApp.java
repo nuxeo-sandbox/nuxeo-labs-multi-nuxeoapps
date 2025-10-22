@@ -104,12 +104,12 @@ public class NuxeoApp extends AbstractNuxeoApp {
             String encodedNxql;
             encodedNxql = URLEncoder.encode(nxql, StandardCharsets.UTF_8);
             targetUrl += "?query=" + encodedNxql;
-            
+
             if (pageIndex < 0) {
                 pageIndex = 0;
             }
             targetUrl += "&currentPageIndex=" + pageIndex;
-            
+
             if (pageSize < 1) {
                 pageSize = DEFAULT_PAGE_SIZE;
             }
@@ -136,7 +136,7 @@ public class NuxeoApp extends AbstractNuxeoApp {
             if (status == 200) { // ==============================> All good
                 result = new JSONObject(resp.body());
                 updateDocumentsEntityType(result, status);
-                
+
             } else { // ==========================================> Error occured
                 String body = resp.body();
                 String errMessage = null;

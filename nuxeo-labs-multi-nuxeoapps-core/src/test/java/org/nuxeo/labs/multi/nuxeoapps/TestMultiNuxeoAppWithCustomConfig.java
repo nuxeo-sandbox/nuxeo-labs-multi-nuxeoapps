@@ -352,7 +352,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
         assertEquals("documents", result.getString("entity-type"));
 
     }
-    
+
     @Test
     public void shouldResuseJWTToken() throws Exception {
 
@@ -365,17 +365,17 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONObject resultObj = multiNuxeoAppService.call(APP_TO_TEST, null, TestUtils.KEYWORD, null, null, 0, 0);
         assertNotNull(resultObj);
-        
+
         NuxeoApp nxApp = multiNuxeoAppService.getNuxeoApp(APP_TO_TEST);
-        assertEquals(nxApp.getauthenticationType(), AuthenticationType.JWT);
+        assertEquals(nxApp.getAuthenticationType(), AuthenticationType.JWT);
         NuxeoAppAuthenticationJWT nxApAuth = (NuxeoAppAuthenticationJWT) nxApp.getNuxeoAppAuthentication();
         String token = nxApAuth.getToken(null);
         assertNotNull(token);
-        
+
         Thread.sleep(5000);
         token = nxApAuth.getToken(null);
         assertNotNull(token);
-        
+
     }
 
     @Test

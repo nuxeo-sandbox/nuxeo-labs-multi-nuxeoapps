@@ -45,7 +45,7 @@ import org.nuxeo.labs.multi.nuxeoapps.servlet.NuxeoAppServletUtils;
 public abstract class AbstractNuxeoApp {
 
     public static final String MULTI_NUXEO_APPS_PROPERTY_NAME = "multiNxAppInfo";
-    
+
     public enum AuthenticationType {
         NOT_NEEDED, BASIC, JWT
     }
@@ -53,7 +53,7 @@ public abstract class AbstractNuxeoApp {
     protected String appName;
 
     protected String appUrl;
-    
+
     protected AuthenticationType authenticationType;
 
     protected boolean isLocalNuxeo;
@@ -91,8 +91,8 @@ public abstract class AbstractNuxeoApp {
     public String getAppUrl() {
         return appUrl;
     }
-    
-    public AuthenticationType getauthenticationType() {
+
+    public AuthenticationType getAuthenticationType() {
         return authenticationType;
     }
 
@@ -190,13 +190,12 @@ public abstract class AbstractNuxeoApp {
     }
 
     /**
-     * 
      * @return
      * @since TODO
      */
     // Implemented only in sub-classes, but used in getBlob()
     public abstract NuxeoAppAuthentication getNuxeoAppAuthentication();
-    
+
     /**
      * Check availability, trargeting the runningstatus endpoint (that does not require authentication)
      * 
@@ -205,16 +204,14 @@ public abstract class AbstractNuxeoApp {
      */
     public boolean isServerAvailable() {
         try {
-            
-            HttpClient client = HttpClient.newBuilder()
-                                           .connectTimeout(Duration.ofSeconds(5))
-                                           .build();
+
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
             String healthStatusUrl = appUrl + "/runningstatus";
             HttpRequest request = HttpRequest.newBuilder(URI.create(healthStatusUrl))
-                                                .timeout(Duration.ofSeconds(10))
-                                                .GET()
-                                                .build();
+                                             .timeout(Duration.ofSeconds(10))
+                                             .GET()
+                                             .build();
 
             @SuppressWarnings("unused")
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
