@@ -137,7 +137,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
         for(int i = 0; i < apps.length(); i++) {
             JSONObject oneAppJson = apps.getJSONObject(i);
             String appName = oneAppJson.getString("appName");
-            if(APP_NAMES_BASIC.indexOf(appName) > -1) {
+            if (APP_NAMES_BASIC.indexOf(appName) > -1) {
                 foundCount += 1;
             }
         }
@@ -154,10 +154,10 @@ public class TestMultiNuxeoAppWithCustomConfig {
         
         // When called from other test, we wcould have deployed all apps, not just JWT
         int foundCount = 0;
-        for(int i = 0; i < apps.length(); i++) {
+        for (int i = 0; i < apps.length(); i++) {
             JSONObject oneAppJson = apps.getJSONObject(i);
             String appName = oneAppJson.getString("appName");
-            if(APP_NAMES_JWT.indexOf(appName) > -1) {
+            if (APP_NAMES_JWT.indexOf(appName) > -1) {
                 foundCount += 1;
             }
         }
@@ -254,6 +254,40 @@ public class TestMultiNuxeoAppWithCustomConfig {
         int resultCount = result.getInt("resultsCount");
         assertEquals(TestUtils.CREATE_DOCS_COUNT, resultCount);
 
+    }
+    
+    @Test
+    @Deploy("nuxeo-labs-multi-nuxeoapps-core:MultiNuxeoApps_BASIC.xml")
+    public void testSearchOnlyRemoteApps() {
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigBASICDeployed();
+
+        String APP_TO_TEST = "TEST_App2_BASIC";
+
+        Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
+        
+        // ====================> No current nuxeo search
+        JSONObject tuning = new JSONObject();
+        tuning.put("alwaysSearchLocalNuxeo", false);
+        multiNuxeoAppService.tuneNuxeoApps(tuning);
+        
+        JSONObject resultObj = multiNuxeoAppService.call("all", "SELECT * FROM File", null, "", "", 0, 1);
+        assertNotNull(resultObj);
+        
+        JSONArray arr = resultObj.getJSONArray("results");
+        assertEquals(2, arr.length());
+        
+        // ====================> restore current nuxeo search
+        tuning.put("alwaysSearchLocalNuxeo", true);
+        multiNuxeoAppService.tuneNuxeoApps(tuning);
+        
+        resultObj = multiNuxeoAppService.call("all", "SELECT * FROM File", null, "", "", 0, 1);
+        assertNotNull(resultObj);
+        
+        arr = resultObj.getJSONArray("results");
+        assertEquals(3, arr.length());
+        
     }
 
     @Test
@@ -389,7 +423,9 @@ public class TestMultiNuxeoAppWithCustomConfig {
         }
 
         // With full stack
-        multiNuxeoAppService.tuneNuxeoApps(true);
+        JSONObject tuning = new JSONObject();
+        tuning.put("doFullStackOnError", true);
+        multiNuxeoAppService.tuneNuxeoApps(tuning);
         resultObj = multiNuxeoAppService.call("all", "SELECT ***** FROM File", null, null, null, 0, 0);
         assertNotNull(resultObj);
 

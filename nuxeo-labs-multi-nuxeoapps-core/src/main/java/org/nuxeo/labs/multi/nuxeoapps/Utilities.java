@@ -18,16 +18,8 @@
  */
 package org.nuxeo.labs.multi.nuxeoapps;
 
-import java.io.IOException;
-import java.util.Arrays;
-
-import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.nuxeo.ecm.automation.core.util.PaginableDocumentModelList;
-import org.nuxeo.ecm.core.api.DocumentModelList;
-import org.nuxeo.ecm.core.io.registry.MarshallerHelper;
-import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
 
 /**
  * @since 2023
