@@ -18,13 +18,23 @@
  */
 package org.nuxeo.labs.multi.nuxeoapps;
 
+import java.io.IOException;
+import java.util.Arrays;
+
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.nuxeo.ecm.automation.core.util.PaginableDocumentModelList;
+import org.nuxeo.ecm.core.api.DocumentModelList;
+import org.nuxeo.ecm.core.io.registry.MarshallerHelper;
+import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
 
 /**
  * @since 2023
  */
 public class Utilities {
+    
+    public static final String NULL_VALUE_FOR_JSON = "(null)";
 
     /**
      * @param e
@@ -54,6 +64,23 @@ public class Utilities {
         }
 
         return json;
+    }
+    
+    /**
+     * Formatting null values so they are displayed as "(null)"
+     * 
+     * @param value
+     * @return
+     * @since TODO
+     */
+    public static String returnNullAsStringIfNeeded(String value) {
+        
+        if(value == null) {
+            return NULL_VALUE_FOR_JSON;
+        }
+        
+        return value;
+        
     }
 
 }

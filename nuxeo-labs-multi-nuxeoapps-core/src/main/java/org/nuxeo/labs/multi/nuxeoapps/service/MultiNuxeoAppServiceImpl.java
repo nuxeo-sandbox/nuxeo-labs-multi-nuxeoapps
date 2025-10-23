@@ -40,6 +40,7 @@ import org.nuxeo.ecm.core.api.NuxeoPrincipal;
 import org.nuxeo.labs.multi.nuxeoapps.AbstractNuxeoApp;
 import org.nuxeo.labs.multi.nuxeoapps.NuxeoApp;
 import org.nuxeo.labs.multi.nuxeoapps.NuxeoAppCurrent;
+import org.nuxeo.labs.multi.nuxeoapps.Utilities;
 import org.nuxeo.runtime.model.ComponentContext;
 import org.nuxeo.runtime.model.DefaultComponent;
 import org.nuxeo.runtime.model.Extension;
@@ -47,8 +48,6 @@ import org.nuxeo.runtime.model.Extension;
 public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiNuxeoAppService {
     
     public static final String CALL_PARAMETERS_PROPERTY = "MultiNxApps_CallParameters";
-    
-    public static final String NULL_VALUE_FOR_JSON = "(null)";
 
     private static final Logger log = LogManager.getLogger(MultiNuxeoAppServiceImpl.class);
 
@@ -130,6 +129,46 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
             pool.shutdown();
         }
     }
+    
+    protected JSONArray fetchAllAsync(List<NuxeoApp> nuxeoApps, String currentUser, String pageProvider, String queryParams,
+            Map<String, String> namedParams, String enrichers,
+            String properties, int pageIndex, int pageSize) {
+
+
+        int maxProcessors = Math.max(1, Runtime.getRuntime().availableProcessors());
+        int maxApps = Math.max(1, nuxeoApps.size());
+        int poolSize = Math.min(maxProcessors, maxApps);
+        ExecutorService pool = Executors.newFixedThreadPool(poolSize);
+
+        try {
+            List<CompletableFuture<JSONObject>> futures = new ArrayList<>();
+
+            for (NuxeoApp app : nuxeoApps) {
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return app.call(currentUser, pageProvider, queryParams, namedParams, enrichers, properties, pageIndex, pageSize);
+                    } catch (Exception e) {
+                        JSONObject err = AbstractNuxeoApp.generateErrorObject(-1, e.getMessage(), app.getAppName(), true, e);
+                        return err;
+                    }
+                }, pool));
+            }
+
+            // Wait and collect
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            JSONArray finalResult = new JSONArray();
+            for (CompletableFuture<JSONObject> f : futures) {
+                finalResult.put(f.join());
+            }
+            return finalResult;
+
+        } finally {
+            pool.shutdown();
+        }
+        
+        
+    }
     // ====================================================
     // ====================================================
     // ====================================================
@@ -142,17 +181,18 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
             throw new IllegalArgumentException("Both fulltextSearchValues and nxql can't be empty.");
         }
         
-        // Store now search info as received
+        // ====================> Store now search info as received
         JSONObject callParameters = new JSONObject();
         callParameters.put("applications", nuxeoApps);
-        callParameters.put("nxql", nxql == null ? NULL_VALUE_FOR_JSON : nxql);
+        callParameters.put("nxql", Utilities.returnNullAsStringIfNeeded(nxql));
         // orj.json.JSONOBject#put remove the key of the value passed is null.
-        callParameters.put("fulltextSearchValues", fulltextSearchValues == null ? NULL_VALUE_FOR_JSON : fulltextSearchValues);
-        callParameters.put("enrichers", enrichers == null ? NULL_VALUE_FOR_JSON : enrichers);
-        callParameters.put("properties", properties == null ? NULL_VALUE_FOR_JSON : properties);
+        callParameters.put("fulltextSearchValues", Utilities.returnNullAsStringIfNeeded(fulltextSearchValues));
+        callParameters.put("enrichers", Utilities.returnNullAsStringIfNeeded(enrichers));
+        callParameters.put("properties", Utilities.returnNullAsStringIfNeeded(properties));
         callParameters.put("pageIndex", pageIndex);
         callParameters.put("pageSize", pageSize);
 
+        // ====================> Work
         if (StringUtils.isBlank(nxql)) {
             nxql = "SELECT * FROM Document WHERE ecm:fulltext='" + fulltextSearchValues + "'";
             nxql += " AND ecm:isVersion = 0 AND ecm:isProxy = 0 AND ecm:isTrashed = 0";
@@ -160,11 +200,11 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
         }
 
         if (enrichers == null) {
-            enrichers = "";//"thumbnail";
+            enrichers = "";
         }
 
         if (properties == null) {
-            properties = "";//"dublincore,file,uid,common";
+            properties = "";
         }
 
         JSONArray allresults;
@@ -225,18 +265,86 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
     }
 
     @Override
-    public JSONObject call(JSONArray customApps, String nxql, String fulltextSearchValues, String enrichers,
+    public JSONObject call(JSONArray appsToUse, String nxql, String fulltextSearchValues, String enrichers,
             String properties, int pageIndex, int pageSize) {
 
         List<NuxeoApp> nuxeoApps = new ArrayList<NuxeoApp>();
 
-        for (int i = 0; i < customApps.length(); i++) {
-            JSONObject json = customApps.getJSONObject(i);
+        for (int i = 0; i < appsToUse.length(); i++) {
+            JSONObject json = appsToUse.getJSONObject(i);
             nuxeoApps.add(NuxeoApp.fromJSONObject(json));
         }
 
         return call(nuxeoApps, nxql, fulltextSearchValues, enrichers, properties, pageIndex, pageSize);
 
+    }
+    
+    @Override
+    public JSONObject callPageProvider(List<NuxeoApp> nuxeoApps, String pageProvider, String queryParams,
+            Map<String, String> namedParams, String enrichers, String properties, int pageIndex, int pageSize) {
+
+        if(nuxeoApps == null) {
+            throw new IllegalArgumentException("No appsToUse.");
+        }
+        if (StringUtils.isAllBlank(pageProvider)) {
+            throw new IllegalArgumentException("No Page Provider.");
+        }
+        
+        // ====================> Store now search info as received
+        JSONObject callParameters = new JSONObject();
+        String allNames = nuxeoApps.stream()
+                                    .map(NuxeoApp::getAppName)
+                                    .collect(Collectors.joining(","));
+        callParameters.put("applications", allNames);
+        callParameters.put("pageProvider", Utilities.returnNullAsStringIfNeeded(pageProvider));
+        callParameters.put("queryParams", Utilities.returnNullAsStringIfNeeded(queryParams));
+        if(namedParams == null) {
+            namedParams = null;
+        } else {
+            allNames = namedParams.entrySet()
+                                    .stream()
+                                    .map(e -> e.getKey() + "=" + e.getValue())
+                                    .collect(Collectors.joining(","));
+        }
+        callParameters.put("namedParams", Utilities.returnNullAsStringIfNeeded(allNames));
+        callParameters.put("enrichers", Utilities.returnNullAsStringIfNeeded(enrichers));
+        callParameters.put("properties", Utilities.returnNullAsStringIfNeeded(properties));
+        callParameters.put("pageIndex", pageIndex);
+        callParameters.put("pageSize", pageSize);
+
+        // ====================> Work
+        if (enrichers == null) {
+            enrichers = "";
+        }
+
+        if (properties == null) {
+            properties = "";
+        }
+        JSONArray allresults;
+        if (nuxeoApps.size() == 0) {
+            allresults = new JSONArray();
+            JSONObject obj = AbstractNuxeoApp.generateErrorObject(-1, "", "No Application to call", false, (Throwable) null);
+            allresults.put(obj);
+        } else if (nuxeoApps.size() == 1) {
+            JSONObject result = nuxeoApps.get(0).call(pageProvider, queryParams, namedParams, enrichers, properties, pageIndex, pageSize);
+            allresults = new JSONArray();
+            allresults.put(result);
+        } else {
+            allresults = fetchAllAsync(nuxeoApps, getCurrentUserName(), pageProvider, queryParams, namedParams, enrichers, properties, pageIndex, pageSize);
+        }
+
+        // Now, search current Nuxeo
+        NuxeoPrincipal pcipal = NuxeoPrincipal.getCurrent();
+        CoreSession session = CoreInstance.getCoreSession(null, pcipal);
+        JSONObject localSearchObj = NuxeoAppCurrent.getInstance()
+                                                   .search(session, pageProvider, queryParams, namedParams, enrichers, properties, pageIndex, pageSize);
+        allresults.put(localSearchObj);
+        
+        JSONObject finalResultObj = new JSONObject();
+        finalResultObj.put(CALL_PARAMETERS_PROPERTY, callParameters);
+        finalResultObj.put("results",  allresults);
+
+        return finalResultObj;
     }
 
     // ======================================================================
@@ -317,7 +425,6 @@ public class MultiNuxeoAppServiceImpl extends DefaultComponent implements MultiN
                 }
             }
         }
-
     }
 
     /**

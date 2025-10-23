@@ -131,13 +131,13 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONArray apps = multiNuxeoAppService.getNuxeoApps();
         assertNotNull(apps);
-        
+
         // When called from other test, we wcould have deployed all apps, not just BASIC
         int foundCount = 0;
-        for(int i = 0; i < apps.length(); i++) {
+        for (int i = 0; i < apps.length(); i++) {
             JSONObject oneAppJson = apps.getJSONObject(i);
             String appName = oneAppJson.getString("appName");
-            if(APP_NAMES_BASIC.indexOf(appName) > -1) {
+            if (APP_NAMES_BASIC.indexOf(appName) > -1) {
                 foundCount += 1;
             }
         }
@@ -151,13 +151,13 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONArray apps = multiNuxeoAppService.getNuxeoApps();
         assertNotNull(apps);
-        
+
         // When called from other test, we wcould have deployed all apps, not just JWT
         int foundCount = 0;
-        for(int i = 0; i < apps.length(); i++) {
+        for (int i = 0; i < apps.length(); i++) {
             JSONObject oneAppJson = apps.getJSONObject(i);
             String appName = oneAppJson.getString("appName");
-            if(APP_NAMES_JWT.indexOf(appName) > -1) {
+            if (APP_NAMES_JWT.indexOf(appName) > -1) {
                 foundCount += 1;
             }
         }
@@ -186,8 +186,8 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONObject props = resultObj.getJSONObject(MultiNuxeoAppServiceImpl.CALL_PARAMETERS_PROPERTY);
         assertEquals(nxql, props.getString("nxql"));
-        assertEquals(MultiNuxeoAppServiceImpl.NULL_VALUE_FOR_JSON, props.getString("fulltextSearchValues"));
-        assertEquals(MultiNuxeoAppServiceImpl.NULL_VALUE_FOR_JSON, props.getString("enrichers"));
+        assertEquals(Utilities.NULL_VALUE_FOR_JSON, props.getString("fulltextSearchValues"));
+        assertEquals(Utilities.NULL_VALUE_FOR_JSON, props.getString("enrichers"));
         assertEquals(properties, props.getString("properties"));
         assertEquals(pageIndex, props.getInt("pageIndex"));
         assertEquals(pageSize, props.getInt("pageSize"));
@@ -278,7 +278,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONArray arr = resultObj.getJSONArray("results");
 
-        assertTrue(arr.length() == APP_NAMES_BASIC.size() +  APP_NAMES_JWT.size() + 1); // + local
+        assertTrue(arr.length() == APP_NAMES_BASIC.size() + APP_NAMES_JWT.size() + 1); // + local
 
     }
 
@@ -302,7 +302,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         JSONArray arr = resultObj.getJSONArray("results");
 
-        assertTrue(arr.length() == APP_NAMES_BASIC.size() +  APP_NAMES_JWT.size() + 1); // + local
+        assertTrue(arr.length() == APP_NAMES_BASIC.size() + APP_NAMES_JWT.size() + 1); // + local
 
         // Check result entries is max PAGE_SIZE
         for (int i = 0; i < arr.length(); i++) {
@@ -311,6 +311,54 @@ public class TestMultiNuxeoAppWithCustomConfig {
             if (!info.optBoolean("hasError", false)) {
                 JSONArray entries = oneResult.getJSONArray("entries");
                 assertTrue(entries.length() <= PAGE_SIZE);
+            }
+        }
+    }
+
+    @Test
+    @Deploy("nuxeo-labs-multi-nuxeoapps-core:MultiNuxeoApps_BASIC.xml")
+    @Deploy("nuxeo-labs-multi-nuxeoapps-core:MultiNuxeoApps_JWT.xml")
+    public void shoudSearchAllAppsWithEnrichersAndProperties() throws Exception {
+
+        Assume.assumeTrue("No test env. variables set => ignoring the test", hasEnvVariablesSet());
+
+        shouldHaveCustomConfigBASICDeployed();
+        shouldHaveCustomConfigJWTDeployed();
+
+        String[] allNames = Stream.concat(APP_NAMES_BASIC.stream(), APP_NAMES_JWT.stream()).toArray(String[]::new);
+        Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(allNames));
+
+        // Let's keep it short, 1 for pageSize
+        int PAGE_SIZE = 1;
+        JSONObject resultObj = multiNuxeoAppService.call("all", "SELECT * FROM File", /* TestUtils.KEYWORD */ null,
+                "thumbnail", "dublincore", 0, PAGE_SIZE);
+        assertNotNull(resultObj);
+
+        JSONArray arr = resultObj.getJSONArray("results");
+
+        assertTrue(arr.length() == APP_NAMES_BASIC.size() + APP_NAMES_JWT.size() + 1); // + local
+
+        // Check result entries, and if one entry, it has the dc schema and the thumbnail
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject oneResult = arr.getJSONObject(i);
+            JSONObject info = oneResult.getJSONObject(AbstractNuxeoApp.MULTI_NUXEO_APPS_PROPERTY_NAME);
+            if (!info.optBoolean("hasError", false)) {
+                JSONArray entries = oneResult.getJSONArray("entries");
+                assertTrue(entries.length() <= PAGE_SIZE);
+
+                if (entries.length() > 0) {
+                    JSONObject oneDoc = entries.getJSONObject(0);
+
+                    // Dublincore
+                    assertTrue(oneDoc.has("properties"));
+                    JSONObject properties = oneDoc.getJSONObject("properties");
+                    assertTrue(properties.has("dc:creator"));
+
+                    // Thumbnail
+                    assertTrue(oneDoc.has("contextParameters"));
+                    JSONObject contextParameters = oneDoc.getJSONObject("contextParameters");
+                    assertTrue(contextParameters.has("thumbnail"));
+                }
             }
         }
     }
@@ -359,7 +407,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         String APP_TO_TEST = "TEST_App2_JWT";
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
-        
+
         NuxeoApp nxApp = multiNuxeoAppService.getNuxeoApp(APP_TO_TEST);
         assertEquals(AuthenticationType.JWT, nxApp.getAuthenticationType());
 
@@ -392,7 +440,7 @@ public class TestMultiNuxeoAppWithCustomConfig {
 
         String APP_TO_TEST = "TEST_App2_JWT";
         Assume.assumeTrue("No distant Nuxeo app available => ignoring the test", atLeastOneAppAvailable(APP_TO_TEST));
-        
+
         NuxeoApp nxApp = multiNuxeoAppService.getNuxeoApp(APP_TO_TEST);
         assertEquals(nxApp.getAuthenticationType(), AuthenticationType.JWT);
 

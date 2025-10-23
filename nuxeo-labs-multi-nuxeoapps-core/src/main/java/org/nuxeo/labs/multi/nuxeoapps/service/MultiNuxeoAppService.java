@@ -19,6 +19,7 @@
 package org.nuxeo.labs.multi.nuxeoapps.service;
 
 import java.util.List;
+import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -40,7 +41,7 @@ public interface MultiNuxeoAppService {
 
     /**
      * Return a JSONArray of NuxeoApps, with all their fields?
-     * Usefull for modifing some and call {@code call(JSONArray customApps, ...etc...} with modified values (specific
+     * Usefull for modifing some and call {@code call(JSONArray appsToUse, ...etc...} with modified values (specific
      * user for token auth, etc.)
      * 
      * @return
@@ -96,7 +97,7 @@ public interface MultiNuxeoAppService {
      * Typicvally:
      * 1. Get the NuxeoApps ({@code List<NuxeoApp> getNuxeoApps())
      * 2. Duplicate (as they are immutable)
-     * @param customApps
+     * @param appsToUse
      * 
      * @param nxql if not null or empty, this overrides the default NXQL
      * @param fulltextSearchValues, required if nxql not passed
@@ -107,16 +108,16 @@ public interface MultiNuxeoAppService {
      * @return
      * @since 2023
      */
-    JSONObject call(JSONArray customApps, String nxql, String fulltextSearchValues, String enrichers, String properties,
+    JSONObject call(JSONArray appsToUse, String nxql, String fulltextSearchValues, String enrichers, String properties,
             int pageIndex, int pageSize);
 
     /**
      * Same as
      * {@code call(String appsToUseStr, String nxql, String fulltextSearchValues, String enrichers, String properties, int pageIndex)},
-     * but we don't use the contributed NuxeApps, and instead we use the customApps listing the apps to use.
+     * but we don't use the contributed NuxeApps, and instead we use the appsToUse listing the apps to use.
      * UseCase: Calling for different users than the ones declared in the contribution.
      * 
-     * @param customApps
+     * @param appsToUse
      * @param nxql if not null or empty, this overrides the default NXQL
      * @param fulltextSearchValues, required if nxql not passed
      * @param enrichers
@@ -126,8 +127,25 @@ public interface MultiNuxeoAppService {
      * @return
      * @since 2023
      */
-    JSONObject call(List<NuxeoApp> customApps, String nxql, String fulltextSearchValues, String enrichers,
+    JSONObject call(List<NuxeoApp> appsToUse, String nxql, String fulltextSearchValues, String enrichers,
             String properties, int pageIndex, int pageSize);
+
+    /**
+     * Search using a page provider (that must be declared in all appsToUse)
+     * 
+     * @param appsToUse
+     * @param pageProvider
+     * @param queryParams, null or "" or comma-separated list (ordered same as ? in the page provider definition)
+     * @param namedParams, null of once per expected parameter in the page provider definition
+     * @param enrichers
+     * @param properties
+     * @param pageIndex
+     * @param pageSize
+     * @return
+     * @since TODO
+     */
+    JSONObject callPageProvider(List<NuxeoApp> nuxeoApps, String pageProvider, String queryParams,
+            Map<String, String> namedParams, String enrichers, String properties, int pageIndex, int pageSize);
 
     /**
      * In case of error, the result contains the fuill exception, when available.
