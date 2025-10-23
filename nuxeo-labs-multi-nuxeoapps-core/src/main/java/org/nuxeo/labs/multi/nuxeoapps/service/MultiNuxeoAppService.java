@@ -148,11 +148,25 @@ public interface MultiNuxeoAppService {
             Map<String, String> namedParams, String enrichers, String properties, int pageIndex, int pageSize);
 
     /**
-     * In case of error, the result contains the fuill exception, when available.
+     * A utility method to convert "app1,app2,app3" to a list of corresponding NuxeoApp
+     * @param nuxeoApps
+     * @return
+     * @since TODO
+     */
+    List<NuxeoApp> appNamesToNuxeoAppList(String appsToUse);
+    
+    /**
+     * Possible fields (optional, you pass only the one(s) you need to tune)
+     * <ul>
+     * <li>doFullStackOnError: return the full stack if an error oiccurs in a distant NuxeoApp (default is false)
+     * <li>alwaysSearchLocalNuxeo: also search the current Nuxeo App (default is true)
+     * </ul>
      * 
-     * @param doFullStackOnError
+     * Returns the original values, before the changes.
+     * 
+     * @param 
      * @since 2023
      */
-    void tuneNuxeoApps(boolean doFullStackOnError);
+    JSONObject tuneNuxeoApps(JSONObject params);
 
 }

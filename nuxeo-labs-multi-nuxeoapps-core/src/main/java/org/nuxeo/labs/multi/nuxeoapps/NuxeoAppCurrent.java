@@ -31,7 +31,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.nuxeo.common.Environment;
 import org.nuxeo.ecm.automation.core.util.PageProviderHelper;
-import org.nuxeo.ecm.automation.core.util.PaginableDocumentModelList;
 import org.nuxeo.ecm.automation.io.rest.documents.PaginableDocumentModelListImpl;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;

@@ -3,6 +3,8 @@
 	name="org.nuxeo.labs.multi.nuxeoapps.operations">
 	<extension point="operations" target="org.nuxeo.ecm.core.operation.OperationServiceComponent">
         <operation class="org.nuxeo.labs.multi.nuxeoapps.operations.SearchOp"/>
+        <operation class="org.nuxeo.labs.multi.nuxeoapps.operations.SearchByProviderOp"/>
         <operation class="org.nuxeo.labs.multi.nuxeoapps.operations.GetRemoteNuxeoAppsConfigurationOp"/>
+        <operation class="org.nuxeo.labs.multi.nuxeoapps.operations.ConfigureServiceOp"/>
     </extension>
 </component>

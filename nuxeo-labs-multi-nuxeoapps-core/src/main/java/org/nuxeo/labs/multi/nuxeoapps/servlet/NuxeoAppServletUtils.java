@@ -26,10 +26,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.NuxeoException;
-import org.nuxeo.ecm.core.io.registry.context.RenderingContext;
 import org.nuxeo.labs.multi.nuxeoapps.NuxeoAppCurrent;
 
 /**
@@ -210,7 +210,7 @@ public class NuxeoAppServletUtils {
      */
     public static String restoreOriginalUrl(String url, String appUrl, String appName) {
 
-        url = StringUtils.remove(url,
+        url = Strings.CS.remove(url,
                 NuxeoAppCurrent.CONTEXT_PATH + "/" + NuxeoAppServlet.MULTI_NUXEO_APPS_SERVLET_KEY + "/" + appName);
         if (!url.startsWith("/")) {
             url = "/" + url;

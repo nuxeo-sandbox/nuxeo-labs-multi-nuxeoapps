@@ -18,11 +18,12 @@
  */
 package org.nuxeo.labs.multi.nuxeoapps.operations;
 
-import org.json.JSONArray;
+import org.json.JSONObject;
 import org.nuxeo.ecm.automation.core.Constants;
 import org.nuxeo.ecm.automation.core.annotations.Context;
 import org.nuxeo.ecm.automation.core.annotations.Operation;
 import org.nuxeo.ecm.automation.core.annotations.OperationMethod;
+import org.nuxeo.ecm.automation.core.annotations.Param;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
@@ -30,20 +31,26 @@ import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
 /**
  * @since 2023
  */
-@Operation(id = GetRemoteNuxeoAppsConfigurationOp.ID, category = Constants.CAT_SERVICES, label = "Get Nuxeo Apps Configuration", description = ""
-        + "Returns a JSON Array of the configuration for the Nuxeo Apps")
-public class GetRemoteNuxeoAppsConfigurationOp {
+@Operation(id = ConfigureServiceOp.ID, category = Constants.CAT_SERVICES, label = "Configure Service", description = ""
+        + "Configure the behavior of the service. See the operaiton detailed documentaiton for possible values."
+        + "Returns the previous values")
+public class ConfigureServiceOp {
 
-    public static final String ID = "MultiNuxeoApps.GetNuxeoAppsConfiguration";
+    public static final String ID = "MultiNuxeoApps.ConfigureService";
 
     @Context
     protected MultiNuxeoAppService service;
 
+    @Param(name = "params", required = true, description = "A JSON string with the isc. parameters.")
+    protected Boolean params = false;
+
     @OperationMethod
     public Blob run() {
+        
+        JSONObject paramsJson = new JSONObject(params);
 
-        JSONArray result = service.getNuxeoApps();
-
+        JSONObject result = service.tuneNuxeoApps(paramsJson);
+        
         return Blobs.createJSONBlob(result.toString());
 
     }
