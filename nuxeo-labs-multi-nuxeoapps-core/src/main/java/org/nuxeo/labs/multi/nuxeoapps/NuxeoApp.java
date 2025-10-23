@@ -26,7 +26,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.nuxeo.ecm.core.api.NuxeoException;
@@ -109,7 +112,117 @@ public class NuxeoApp extends AbstractNuxeoApp {
                 pageIndex = 0;
             }
             targetUrl += "&currentPageIndex=" + pageIndex;
+
+            if (pageSize < 1) {
+                pageSize = DEFAULT_PAGE_SIZE;
+            }
+            targetUrl += "&pageSize=" + pageSize;
+
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(targetUrl))
+                                             .timeout(Duration.ofSeconds(40))
+                                             .header("Authorization", authHeaderValue)
+                                             .header("Content-Type", "application/json")
+                                             .header("enrichers.document", enrichers)
+                                             .header("properties", properties)
+                                             .GET()
+                                             .build();
+
+            // We assume the response will not be megabytes, it's JSON string, no need for a stream,
+            // get it directly in a String
+            HttpResponse<String> resp;
+            resp = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // Read response
+            int status = resp.statusCode();
+
+            if (status == 200) { // ==============================> All good
+                result = new JSONObject(resp.body());
+                updateDocumentsEntityType(result, status);
+
+            } else { // ==========================================> Error occured
+                String body = resp.body();
+                String errMessage = null;
+
+                JSONObject errJson;
+                try {
+                    errJson = new JSONObject(body);
+                    errMessage = errJson.optString("message", null);
+                } catch (JSONException e) {
+                    errJson = null;
+                }
+
+                if (fullStackOnError) {
+                    if (errJson == null) {
+                        errMessage = body;
+                    }
+                } else {
+                    if (errMessage == null) {
+                        int maxSize = 5 * 1024;
+
+                        errMessage = body;
+                        // We receive UTF-8 English, so it's safe to consider one char = one byte.
+                        if (errMessage.length() > maxSize) {
+                            errMessage = "[TRUNCATED TO 5k] " + errMessage.substring(0, maxSize);
+                        }
+                    }
+                }
+                result = generateErrorObject(status, "An error occured: " + errMessage, appName, true,
+                        fullStackOnError ? errJson : (JSONObject) null);
+            }
+
+        } catch (IOException | InterruptedException e) {
+            result = generateErrorObject(-1, "An error occured: " + e.getMessage(), appName, true,
+                    fullStackOnError ? e : (Throwable) null);
+        }
+
+        return result;
+    }
+
+    public JSONObject call(String pageProvider, String queryParams, Map<String, String> namedParams, String enrichers,
+            String properties, int pageIndex, int pageSize) {
+
+        JSONObject result = null;
+
+        result = call(null, pageProvider, queryParams, namedParams, enrichers, properties, pageIndex, pageSize);
+
+        return result;
+    }
+
+    public JSONObject call(String currentUserName, String pageProvider, String queryParams,
+            Map<String, String> namedParams, String enrichers, String properties, int pageIndex, int pageSize) {
+
+        JSONObject result;
+
+        try {
+            String authHeaderValue = nuxeoAppAuthentication.getAutorizationHeaderValue(currentUserName);
+
+            String targetUrl = appUrl + "/api/v1/pp/" + pageProvider + "/execute";
             
+            boolean hasQuestionMark = false;
+            
+            if(StringUtils.isNotBlank(queryParams)) {
+                hasQuestionMark = true;
+                targetUrl += "?" + URLEncoder.encode(queryParams, StandardCharsets.UTF_8);
+            }
+            if(namedParams != null) {
+                String allNames = namedParams.entrySet()
+                                             .stream()
+                                             .map(e -> e.getKey() + "=" + e.getValue())
+                                             .collect(Collectors.joining(","));
+                if(!hasQuestionMark) {
+                    targetUrl += "?";
+                    hasQuestionMark = true;
+                }
+                targetUrl += URLEncoder.encode(allNames, StandardCharsets.UTF_8);
+            }
+
+
+            if (pageIndex < 0) {
+                pageIndex = 0;
+            }
+            targetUrl += "&currentPageIndex=" + pageIndex;
+
             if (pageSize < 1) {
                 pageSize = DEFAULT_PAGE_SIZE;
             }
