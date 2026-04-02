@@ -52,7 +52,7 @@ public class SearchByProviderOp {
     @Param(name = "provider", required = true, description = "The Page Provider to use.")
     protected String provider;
 
-    @Param(name = "queryParams", required = false, description = "Comma-separated list que parameters,n that will replace each ? in the WHERE clause")
+    @Param(name = "queryParams", required = false, description = "Comma-separated list que parameters, that will replace each ? in the WHERE clause")
     protected String queryParams;
 
     @Param(name = "namedParameters", required = false, description = "A key-value list of named parameters")
@@ -61,7 +61,7 @@ public class SearchByProviderOp {
     @Param(name = "enrichers", required = false, description = "Comma separated list of enrichers.")
     protected String enrichers;
 
-    @Param(name = "properties", required = false, description = "comma separated list of properties")
+    @Param(name = "properties", required = false, description = "Comma separated list of properties.")
     protected String properties;
 
     @Param(name = "pageIndex", required = false, description = "Page to fetch. Used if > 1")

@@ -2,10 +2,6 @@
 
 Performs a search in multiple other Nuxeo applications.
 
-> [!IMPORTANT]
-> This is **work in progress**. Using Github as a backup for now.
-> Do not use it now, please.
-
 ## Searching Multiple Nuxeo Applications
 
 The plugin allows for executing the same search (either NXQL or a page provider) accross as many distant Nuxeo applications as contributed to the `MultiNuxeoAppService` service. The result of the search is a JSON array of entity-type `"documents"`, one per configured application plus the current Nuxeo running application. The returned JSON also add a couple information specific to the plugin (see below for more information).
@@ -93,7 +89,83 @@ This means, of course, current user exists in the distant Nuxeo application.
 
 ## Operations
 
+### Result of the multi app search
 
+After calling an operation that performs the search (either with a PageProvider or an NXQL string), when the call is succesfull, the returned blob is the following:
+
+> [!TIP]
+> See the `nuxeo-labs-multinuxeoapps-search.html` example element
+
+```json
+{
+  multiNxApps_CallParameters: { the parameters of the call: named parameters, nxql, ...},
+  results: [
+    {
+      multiNxAppInfo: {...},
+      entries: [...]
+    }, {
+      multiNxAppInfo: {...},
+      entries: [...]
+    },
+    . . .
+  ]
+}
+```
+
+Where `entries` is the exacte value returned by the Nuxeo application (see the `documents` entty-type in the REST documentation)
+
+### `MultiNuxeoApps.ConfigureService`
+
+Configure the behavior of the service.
+
+* Input: `void` (input is ignored)
+* Output: `Blob`, a JSON blob of the previous values. Call its `getString()` to get the JSON string (and `JSON.parse()`).
+* Parameters
+  * `params`: String, required. A JSON string with the misc. parameters.
+
+Possible properties of the JSON object:
+
+* `doFullStackOnError`: `boolean`, if `true`, returns the full Java stack when an error occurs, instead of a simple information
+* `alwaysSearchLocalNuxeo`: `boolean`. As its name states.
+
+### `MultiNuxeoApps.MultiNuxeoAppsSearchByProvider`
+
+Search in All Nuxeo Apps with a PageProvider. Obviousely, each distant Nuxeo applicaiton must have this Pageprovider.
+
+* Input: `void` (input is ignored)
+* Output: `Blob`, a JSON blob of the result. Call its `getString()` to get the JSON string (and `JSON.parse()`). See "Result of the multi app search" for the returned JSON.
+* Parameters
+  * `nuxeoApps`: String, optional. List of configured apps to call, comma separated. empty or 'all' => all apps.
+  * `provider`: String, required. The Page Provider to use.
+  * `queryParams`: String, optional. Comma-separated list que parameters, that will replace each ? in the WHERE clause.
+  * `namedParameters`: String, optional. A key-value list of named parameters.
+  * `enrichers`: String, optional. Comma separated list of enrichers.
+  * `properties`: String, optional. Comma separated list of properties.
+  * `pageIndex`: Integer, optional (0). Page to fetch. Used if > 1
+  * `pageSize`: Integer, optional (0). Page size. Used if > 1, else a default value applies.
+
+### `MultiNuxeoApps.MultiNuxeoAppsSearch`
+
+Search in All Nuxeo Apps with a NXQL query.
+
+* Input: `void` (input is ignored)
+* Output: `Blob`, a JSON blob of the result. Call its `getString()` to get the JSON string (and `JSON.parse()`). See "Result of the multi app search" for the returned JSON.
+* Parameters
+  * `nuxeoApps`: String, optional. List of configured apps to call, comma separated. empty or 'all' => all apps.
+  * `nxql`: String, optional. NXQL expression to run. If not passed, `fullTextKeywords` is required.
+  * `fullTextKeywords`: String, optional. Used when nxql is empty. A default fulltext search is provided.
+  * `enrichers`: String, optional. Comma separated list of enrichers.
+  * `properties`: String, optional. Comma separated list of properties.
+  * `pageIndex`: Integer, optional (0). Page to fetch. Used if > 1
+  * `pageSize`: Integer, optional (0). Page size. Used if > 1, else a default value applies.
+
+### `MultiNuxeoApps.GetNuxeoAppsConfiguration`
+
+Returns a JSON Array of the configuration for the Nuxeo Apps, as configured in the XML.
+
+* Input: `void` (input is ignored)
+* Output: `Blob`, a JSON blob of the result. Call its `getString()` to get the JSON string (and `JSON.parse()`). 
+* (No Parameters)
 
 <br />
 
@@ -107,7 +179,7 @@ A complete example, corresponding to the screenshot, is available in the [Exampl
 * UI to fetch next/previous pages, if any
 * etc.
 
-Notice the element directly calls the operaitons provided by the plugin there is no need to create one, unless you have to do specific runing before/after the calls.
+Notice the element directly calls the operations provided by the plugin there is no need to create one, unless you have to do specific runing before/after the calls.
 
 <br />
 

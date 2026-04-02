@@ -564,7 +564,7 @@
 
           op.execute()
             .then((res) => {
-              // { multiNxApps_CallParameters: {...}, results: [ multiNxAppInfo: {...}, { entries: [...] }, ... ] }
+              // { multiNxApps_CallParameters: {...}, results: [ {multiNxAppInfo: {...}, entries: [...] }, ... ] }
               const results = (res && res.results) || [];
               let allEntries = results.flatMap(obj => obj.entries);
               this.documents = allEntries;
