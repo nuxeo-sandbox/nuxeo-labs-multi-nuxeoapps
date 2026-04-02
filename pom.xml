@@ -7,7 +7,7 @@
   </parent>
   <groupId>org.nuxeo.labs.multi.nuxeoapps</groupId>
   <artifactId>nuxeo-labs-multi-nuxeoapps-parent</artifactId>
-  <version>2023.1.0-SNAPSHOT</version>
+  <version>2023.3.0-SNAPSHOT</version>
   <name>Nuxeo Labs Multi Nuxeo Apps Parent</name>
   <description/>
   <packaging>pom</packaging>
