@@ -31,10 +31,10 @@ import org.nuxeo.labs.multi.nuxeoapps.service.MultiNuxeoAppService;
  * @since 2023
  */
 @Operation(id = GetRemoteNuxeoAppsConfigurationOp.ID, category = Constants.CAT_SERVICES, label = "Get Nuxeo Apps Configuration", description = ""
-        + "return a JSON Array of the configuration for the Nuxeo Apps")
+        + "Returns a JSON Array of the configuration for the Nuxeo Apps")
 public class GetRemoteNuxeoAppsConfigurationOp {
 
-    public static final String ID = "MultiNuxeoApps.GetNuxeoAppsConfigutation";
+    public static final String ID = "MultiNuxeoApps.GetNuxeoAppsConfiguration";
 
     @Context
     protected MultiNuxeoAppService service;

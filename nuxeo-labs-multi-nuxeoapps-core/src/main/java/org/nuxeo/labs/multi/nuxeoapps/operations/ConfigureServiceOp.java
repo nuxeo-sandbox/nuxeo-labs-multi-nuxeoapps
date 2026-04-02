@@ -41,8 +41,8 @@ public class ConfigureServiceOp {
     @Context
     protected MultiNuxeoAppService service;
 
-    @Param(name = "params", required = true, description = "A JSON string with the isc. parameters.")
-    protected Boolean params = false;
+    @Param(name = "params", required = true, description = "A JSON string with the misc. parameters.")
+    protected String params;
 
     @OperationMethod
     public Blob run() {
