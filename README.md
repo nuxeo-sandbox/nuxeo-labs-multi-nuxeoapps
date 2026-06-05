@@ -1,6 +1,6 @@
 # nuxeo-labs-multi-nuxeoapps
 
-Performs a search in multiple other Nuxeo applications.
+Performs a server-side search in multiple other Nuxeo applications.
 
 ## Searching Multiple Nuxeo Applications
 
